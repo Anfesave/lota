@@ -15,6 +15,13 @@
       "when": 1789702676375,
       "tag": "0001_aromatic_leopardon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789765386002,
+      "tag": "0002_economia",
+      "breakpoints": true
     }
   ]
 }

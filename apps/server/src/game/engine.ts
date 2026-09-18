@@ -1,13 +1,17 @@
 import {
+  CLOSE_TO_WIN_THRESHOLDS,
   INVALID_CLAIM_BLOCK_MS,
   MIN_PLAYERS_TO_START,
+  NUMBERS_PER_CARD,
   TIE_WINDOW_MS,
   cardKey,
+  cardNumbers,
   checkFull,
   createBag,
   findCompletedLine,
   generateUniqueCards,
   type ClaimType,
+  type PlayerCloseToWin,
   type RandomInt,
   type WinnerView,
 } from '@lota/shared';
@@ -38,6 +42,8 @@ export function prepareGame(lobby: Lobby, userId: string, randomInt: RandomInt):
 
     jugador.marks = new Set();
     delete jugador.claimBlockedUntil;
+    delete jugador.closeAnnounced;
+    delete jugador.winningCardIndex;
   }
 
   lobby.bag = createBag(randomInt);
@@ -170,6 +176,41 @@ function requirePlayerInGame(lobby: Lobby, userId: string): LobbyPlayer {
   return jugador;
 }
 
+/** Cuantos numeros le faltan al jugador en su mejor carton. */
+export function remainingToWin(lobby: Lobby, jugador: LobbyPlayer): number {
+  const cantados = new Set(lobby.drawn);
+  let minimo = NUMBERS_PER_CARD;
+
+  for (const carton of jugador.cards) {
+    const faltan = cardNumbers(carton).filter((numero) => !cantados.has(numero)).length;
+    if (faltan < minimo) minimo = faltan;
+  }
+  return minimo;
+}
+
+/**
+ * Avisos que toca mandar a la sala tras cantar un numero: a quien le queden 3,
+ * 2 o 1 numeros. Cada jugador genera como mucho un aviso por escalon, y solo
+ * si baja respecto al ultimo que se anuncio.
+ */
+export function closeToWinAnnouncements(lobby: Lobby): PlayerCloseToWin[] {
+  const mayorUmbral = Math.max(...CLOSE_TO_WIN_THRESHOLDS);
+  const avisos: PlayerCloseToWin[] = [];
+
+  for (const jugador of lobby.players.values()) {
+    const faltan = remainingToWin(lobby, jugador);
+
+    // 0 ya es lota: de eso avisa la pantalla de victoria, no este aviso.
+    if (faltan < 1 || faltan > mayorUmbral) continue;
+    if (jugador.closeAnnounced !== undefined && jugador.closeAnnounced <= faltan) continue;
+
+    jugador.closeAnnounced = faltan;
+    avisos.push({ userId: jugador.userId, username: jugador.username, remaining: faltan });
+  }
+
+  return avisos;
+}
+
 /** Vista de los ganadores para la pantalla de victoria. */
 export function toWinnerViews(lobby: Lobby, userIds: readonly string[]): WinnerView[] {
   const vistas: WinnerView[] = [];
@@ -185,8 +226,9 @@ export function toWinnerViews(lobby: Lobby, userIds: readonly string[]): WinnerV
       victoryMessage: jugador.victoryMessage,
       equipped: jugador.equipped,
       card: jugador.cards[indice] ?? [],
-      // Las monedas llegan en la Fase 6.
+      // Los premios los rellena settleGame al cerrar la contabilidad.
       coinsWon: 0,
+      potWon: 0,
     });
   }
 

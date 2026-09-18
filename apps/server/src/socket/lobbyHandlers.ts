@@ -7,6 +7,7 @@ import {
   lobbyRoom,
   markSchema,
   readySchema,
+  setBetSchema,
   updateSettingsSchema,
   type Ack,
   type LobbyError,
@@ -21,11 +22,13 @@ import {
   LobbyOperationError,
   markDisconnected,
   removePlayer,
+  setBet,
   setReady,
   toLobbyStateView,
   toPlayerView,
   updateSettings,
 } from '../lobby/service.js';
+import { getEquipped } from '../economy/cosmetics.js';
 import { claim, markNumber, prepareGame } from '../game/engine.js';
 import type { Lobby } from '../lobby/types.js';
 import { cryptoRandomInt } from '../random.js';
@@ -99,6 +102,7 @@ export function registerLobbyHandlers(
           id: usuario.id,
           username: usuario.username,
           victoryMessage: usuario.victoryMessage,
+          equipped: await getEquipped(usuario.id),
         },
         password,
       });
@@ -172,6 +176,17 @@ export function registerLobbyHandlers(
       });
       if (newHostId) avisarNuevoAnfitrion(lobby, newHostId);
 
+      await emitLobbyState(io, app.lobbies, lobby.id);
+      return undefined;
+    });
+  });
+
+  socket.on('lobby:setBet', (payload, ack) => {
+    responder(app, ack, async () => {
+      const { amount } = setBetSchema.parse(payload);
+      const lobby = salaActual();
+
+      setBet(lobby, usuario.id, amount);
       await emitLobbyState(io, app.lobbies, lobby.id);
       return undefined;
     });

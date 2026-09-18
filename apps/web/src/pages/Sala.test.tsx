@@ -41,6 +41,7 @@ function estadoDeSala(cambios: Partial<LobbyStateView> = {}): LobbyStateView {
       prizeMode: 'LINEA_Y_CARTON',
       autoMark: false,
       dichos: false,
+      apuestas: false,
     },
     players: [
       {
@@ -50,8 +51,9 @@ function estadoDeSala(cambios: Partial<LobbyStateView> = {}): LobbyStateView {
         connected: true,
         isHost: true,
         equipped: {},
+        bet: 0,
       },
-      { ...OTRO, ready: false, connected: true, isHost: false, equipped: {} },
+      { ...OTRO, ready: false, connected: true, isHost: false, equipped: {}, bet: 0 },
     ],
     maxPlayers: MAX_PLAYERS,
     drawn: [],
@@ -59,6 +61,8 @@ function estadoDeSala(cambios: Partial<LobbyStateView> = {}): LobbyStateView {
     yourMarks: [],
     lineWinnerIds: [],
     winnerIds: [],
+    pot: 0,
+    yourBet: 0,
     ...cambios,
   };
 }
@@ -261,5 +265,62 @@ describe('dentro de la sala', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(t.sala.servidorReiniciado);
     expect(screen.getByRole('heading', { name: t.lobby.titulo })).toBeInTheDocument();
+  });
+});
+
+describe('apuestas en la sala', () => {
+  async function entrarConApuestas(cambios = {}) {
+    const estado = estadoDeSala(cambios);
+    estado.settings.apuestas = true;
+    simularApi();
+    socketFalso.respuestas.set('lobby:join', { ok: true, data: estado });
+    renderizar('/sala/K7P2QX');
+    await screen.findByRole('heading', { name: estado.name });
+    return estado;
+  }
+
+  it('no aparece el panel si la sala no tiene apuestas', async () => {
+    simularApi();
+    socketFalso.respuestas.set('lobby:join', { ok: true, data: estadoDeSala() });
+    renderizar('/sala/K7P2QX');
+    await screen.findByRole('heading', { name: 'Fonda dieciochera' });
+
+    expect(screen.queryByText(t.sala.tuApuesta)).not.toBeInTheDocument();
+  });
+
+  it('sube y baja de $500 en $500', async () => {
+    // Pozo distinto de la apuesta propia, para que el monto no sea ambiguo.
+    await entrarConApuestas({ yourBet: 1000, pot: 2500 });
+
+    expect(screen.getByText('$1.000')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: t.sala.subirApuesta }));
+    expect(socketFalso.emitidos.find((e) => e.evento === 'lobby:setBet')?.payload).toEqual({
+      amount: 1500,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: t.sala.bajarApuesta }));
+    expect(socketFalso.emitidos.filter((e) => e.evento === 'lobby:setBet').at(-1)?.payload).toEqual(
+      { amount: 500 },
+    );
+  });
+
+  it('no deja bajar de cero', async () => {
+    await entrarConApuestas({ yourBet: 0 });
+    expect(screen.getByRole('button', { name: t.sala.bajarApuesta })).toBeDisabled();
+  });
+
+  it('muestra el pozo y lo que apostó cada jugador', async () => {
+    const estado = estadoDeSala({ yourBet: 1500, pot: 2000 });
+    estado.settings.apuestas = true;
+    estado.players[1]!.bet = 500;
+
+    simularApi();
+    socketFalso.respuestas.set('lobby:join', { ok: true, data: estado });
+    renderizar('/sala/K7P2QX');
+    await screen.findByRole('heading', { name: estado.name });
+
+    expect(screen.getByText('$2.000')).toBeInTheDocument();
+    expect(screen.getByText(t.sala.apuestaDe('$500'))).toBeInTheDocument();
   });
 });

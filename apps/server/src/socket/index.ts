@@ -11,6 +11,7 @@ import { SESSION_COOKIE_NAME } from '../auth/constants.js';
 import { findUserBySessionToken } from '../auth/sessions.js';
 import type { UserRow } from '../db/schema.js';
 import { callIntervalOverride, countdownOverride } from '../env.js';
+import { settleGame } from '../economy/games.js';
 import { GameRunner } from '../game/runner.js';
 import { sweepLobbies, toLobbyStateView } from '../lobby/service.js';
 import type { LobbyStore } from '../lobby/store.js';
@@ -84,6 +85,11 @@ const socketPlugin: FastifyPluginAsync = async (app) => {
       numberCalled: (lobbyId, payload) => {
         io.to(lobbyRoom(lobbyId)).emit('game:numberCalled', payload);
       },
+      playerClose: (lobbyId, payload) => {
+        io.to(lobbyRoom(lobbyId)).emit('game:playerClose', payload);
+      },
+      settle: (lobby, reason) =>
+        settleGame(lobby, reason, (error, mensaje) => app.log.error(error, mensaje)),
       lineWon: (lobbyId, winners) => {
         io.to(lobbyRoom(lobbyId)).emit('game:lineWon', { winners });
       },

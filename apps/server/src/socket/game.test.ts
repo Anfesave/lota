@@ -8,8 +8,10 @@ import {
   type GameFinished,
   type LobbyStateView,
   type NumberCalled,
+  type PlayerCloseToWin,
   type WinnerView,
 } from '@lota/shared';
+import { closeToWinAnnouncements, drawNext } from '../game/engine.js';
 import { crearAyudantes } from '../test/socketHelpers.js';
 import type { Lobby } from '../lobby/types.js';
 
@@ -41,6 +43,18 @@ function cantarExactamente(code: string, numeros: readonly number[]): void {
   const lobby = sala(code);
   ayudantes.app.games.stop(lobby.id);
   lobby.drawn = [...numeros];
+}
+
+/**
+ * Canta el siguiente numero sin esperar al reloj del locutor, y dispara los
+ * avisos de "le faltan pocos" igual que haria el runner.
+ */
+function forzarCanto(code: string): void {
+  const lobby = sala(code);
+  drawNext(lobby);
+  for (const aviso of closeToWinAnnouncements(lobby)) {
+    ayudantes.app.io.to(`lobby:${lobby.id}`).emit('game:playerClose', aviso);
+  }
 }
 
 describe('empezar la partida', () => {
@@ -368,5 +382,117 @@ describe('reconexión durante la partida', () => {
 
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.error.code).toBe('PARTIDA_EN_CURSO');
+  });
+});
+
+describe('apuestas de la sala', () => {
+  it('no se puede apostar si la sala no tiene apuestas', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { socket } = await ayudantes.crearSala(anfitrion);
+
+    const res = await ayudantes.emitir(socket, 'lobby:setBet', { amount: 500 });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error.code).toBe('APUESTAS_DESACTIVADAS');
+  });
+
+  it('suma el pozo con lo que anota cada uno', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion, {
+      settings: { apuestas: true },
+    });
+    const invitado = await ayudantes.entrarEnSala(code);
+
+    const estados = ayudantes.recolectar<LobbyStateView>(socket, 'lobby:state');
+
+    expect((await ayudantes.emitir(socket, 'lobby:setBet', { amount: 1500 })).ok).toBe(true);
+    expect((await ayudantes.emitir(invitado.socket, 'lobby:setBet', { amount: 500 })).ok).toBe(
+      true,
+    );
+
+    const estado = await estados.esperarQue((e) => e.pot === 2000);
+    expect(estado.yourBet).toBe(1500);
+    expect(estado.players.find((p) => p.userId === invitado.sesion.userId)?.bet).toBe(500);
+  });
+
+  it('rechaza montos que no son múltiplo de 500', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { socket } = await ayudantes.crearSala(anfitrion, { settings: { apuestas: true } });
+
+    const res = await ayudantes.emitir(socket, 'lobby:setBet', { amount: 750 });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error.code).toBe('DATOS_INVALIDOS');
+  });
+
+  it('apagar las apuestas borra lo anotado', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion, {
+      settings: { apuestas: true },
+    });
+    await ayudantes.emitir(socket, 'lobby:setBet', { amount: 1000 });
+
+    const estados = ayudantes.recolectar<LobbyStateView>(socket, 'lobby:state');
+    await ayudantes.emitir(socket, 'lobby:updateSettings', { apuestas: false });
+
+    const estado = await estados.esperarQue((e) => !e.settings.apuestas);
+    expect(estado.pot).toBe(0);
+    expect(estado.yourBet).toBe(0);
+    expect(sala(code).players.get(anfitrion.userId)?.bet).toBe(0);
+  });
+
+  it('el ganador se lleva el pozo', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion, {
+      settings: { apuestas: true },
+    });
+    const invitado = await ayudantes.entrarEnSala(code);
+
+    await ayudantes.emitir(socket, 'lobby:setBet', { amount: 2000 });
+    await ayudantes.emitir(invitado.socket, 'lobby:setBet', { amount: 500 });
+
+    const comienzos = ayudantes.recolectar<{ yourCards: number[][][] }>(socket, 'game:started');
+    await ayudantes.emitir(socket, 'game:start');
+    const { yourCards } = await comienzos.esperarQue(() => true);
+
+    cantarExactamente(code, cardNumbers(yourCards[0]!));
+
+    const finales = ayudantes.recolectar<GameFinished>(socket, 'game:finished');
+    await ayudantes.emitir(socket, 'game:claim', { type: 'FULL', cardIndex: 0 });
+
+    const final = await finales.esperarQue(() => true);
+    expect(final.winners).toHaveLength(1);
+    expect(final.winners[0]!.potWon).toBe(2500);
+  });
+});
+
+describe('aviso de que alguien está por ganar', () => {
+  it('avisa a la sala en 3, 2 y 1, una vez por escalón', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion);
+
+    const comienzos = ayudantes.recolectar<{ yourCards: number[][][] }>(socket, 'game:started');
+    await ayudantes.emitir(socket, 'game:start');
+    const { yourCards } = await comienzos.esperarQue(() => true);
+
+    const numeros = cardNumbers(yourCards[0]!);
+    const avisos = ayudantes.recolectar<PlayerCloseToWin>(socket, 'game:playerClose');
+
+    const lobby = sala(code);
+    ayudantes.app.games.stop(lobby.id);
+
+    // Se van cantando los números del cartón de uno en uno, con la bolsa
+    // arreglada para que el siguiente sea siempre el que toca.
+    for (let cuantos = 1; cuantos <= numeros.length - 1; cuantos++) {
+      lobby.drawn = numeros.slice(0, cuantos - 1);
+      lobby.bag = [numeros[cuantos - 1]!];
+      forzarCanto(code);
+    }
+
+    // Hay que esperar a que llegue el ultimo: leer la lista al tiro es una
+    // carrera perdida contra la red.
+    await avisos.esperarQue((aviso) => aviso.remaining === 1);
+
+    const recibidos = avisos.recibidos.map((a) => a.remaining);
+    expect(recibidos).toEqual([3, 2, 1]);
+    expect(avisos.recibidos[0]!.username).toBe(anfitrion.username);
   });
 });

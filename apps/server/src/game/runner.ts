@@ -2,19 +2,28 @@ import {
   COUNTDOWN_SECONDS,
   type GameFinished,
   type NumberCalled,
+  type PlayerCloseToWin,
   type WinnerView,
 } from '@lota/shared';
 import type { LobbyStore } from '../lobby/store.js';
 import type { Lobby } from '../lobby/types.js';
-import { drawNext, toWinnerViews, type ClaimOutcome } from './engine.js';
+import { closeToWinAnnouncements, drawNext, toWinnerViews, type ClaimOutcome } from './engine.js';
 
 /** Lo que el runner necesita poder avisar; lo implementa la capa de sockets. */
 export interface GameEvents {
   countdown(lobbyId: string, seconds: number): void;
   started(lobbyId: string): Promise<void>;
   numberCalled(lobbyId: string, payload: NumberCalled): void;
+  /** A alguien le faltan 3, 2 o 1 numeros. */
+  playerClose(lobbyId: string, payload: PlayerCloseToWin): void;
   lineWon(lobbyId: string, winners: WinnerView[]): void;
   finished(lobbyId: string, payload: GameFinished): void;
+  /**
+   * Cierra la contabilidad (monedas, pozo, historial) y devuelve a los
+   * ganadores ya con sus premios. Vive fuera del runner para que el motor no
+   * dependa de la base de datos.
+   */
+  settle(lobby: Lobby, reason: GameFinished['reason']): Promise<WinnerView[]>;
   state(lobbyId: string): Promise<void>;
   error(mensaje: string, error: unknown): void;
 }
@@ -138,6 +147,11 @@ export class GameRunner {
       calledAt: new Date().toISOString(),
     });
 
+    // Avisar a la sala de quien esta a punto de ganar.
+    for (const aviso of closeToWinAnnouncements(lobby)) {
+      this.#events.playerClose(lobbyId, aviso);
+    }
+
     this.#programarSiguiente(lobbyId);
   }
 
@@ -149,14 +163,23 @@ export class GameRunner {
     lobby.status = 'FINISHED';
 
     try {
+      // La contabilidad primero: la pantalla de victoria muestra monedas y pozo.
+      const ganadores = await this.#events.settle(lobby, reason);
+
       this.#events.finished(lobbyId, {
-        winners: toWinnerViews(lobby, lobby.winnerIds),
+        winners: ganadores,
         drawn: [...lobby.drawn],
         reason,
       });
       await this.#events.state(lobbyId);
     } catch (error) {
       this.#events.error('no se pudo anunciar el final', error);
+      // Aunque falle el reparto, la sala tiene que enterarse de que termino.
+      this.#events.finished(lobbyId, {
+        winners: toWinnerViews(lobby, lobby.winnerIds),
+        drawn: [...lobby.drawn],
+        reason,
+      });
     }
   }
 

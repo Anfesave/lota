@@ -13,6 +13,7 @@ import {
   MIN_CARDS_PER_PLAYER,
   MIN_NUMBER,
 } from '../constants.js';
+import { BET_STEP, MAX_BET, MIN_BET, isValidBet } from '../economy.js';
 import { containsBannedWord } from '../words.js';
 import type { LobbySettings } from './types.js';
 
@@ -57,6 +58,7 @@ export const lobbySettingsSchema = z.object({
   prizeMode: prizeModeSchema,
   autoMark: z.boolean(),
   dichos: z.boolean(),
+  apuestas: z.boolean(),
 });
 
 /** Configuración con la que nace una sala. */
@@ -66,6 +68,7 @@ export const DEFAULT_LOBBY_SETTINGS: LobbySettings = {
   prizeMode: 'LINEA_Y_CARTON',
   autoMark: false,
   dichos: true,
+  apuestas: false,
 };
 
 export const createLobbySchema = z
@@ -103,6 +106,15 @@ export const chatSendSchema = z.object({
     .max(MAX_CHAT_MESSAGE_LENGTH, `Máximo ${MAX_CHAT_MESSAGE_LENGTH} caracteres.`),
 });
 
+export const setBetSchema = z.object({
+  amount: z
+    .number()
+    .int()
+    .min(MIN_BET)
+    .max(MAX_BET)
+    .refine(isValidBet, `La apuesta debe ir de ${BET_STEP} en ${BET_STEP}.`),
+});
+
 export const markSchema = z.object({
   cardIndex: z
     .number()
@@ -121,6 +133,7 @@ export const claimSchema = z.object({
     .max(MAX_CARDS_PER_PLAYER - 1),
 });
 
+export type SetBetInput = z.infer<typeof setBetSchema>;
 export type MarkInput = z.infer<typeof markSchema>;
 export type ClaimInput = z.infer<typeof claimSchema>;
 

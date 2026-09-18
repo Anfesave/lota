@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import {
@@ -54,6 +54,7 @@ function estadoEnJuego(cambios: Partial<LobbyStateView> = {}): LobbyStateView {
       prizeMode: 'LINEA_Y_CARTON',
       autoMark: false,
       dichos: false,
+      apuestas: false,
     },
     players: [
       {
@@ -63,6 +64,7 @@ function estadoEnJuego(cambios: Partial<LobbyStateView> = {}): LobbyStateView {
         connected: true,
         isHost: true,
         equipped: {},
+        bet: 0,
       },
     ],
     maxPlayers: MAX_PLAYERS,
@@ -71,6 +73,8 @@ function estadoEnJuego(cambios: Partial<LobbyStateView> = {}): LobbyStateView {
     yourMarks: [],
     lineWinnerIds: [],
     winnerIds: [],
+    pot: 0,
+    yourBet: 0,
     ...cambios,
   };
 }
@@ -127,9 +131,12 @@ beforeEach(() => {
     conectado: false,
     cuentaAtras: null,
     ultimoNumero: null,
+    cantados: [],
+    marcas: [],
     ganadoresLinea: [],
     final: null,
     rechazo: null,
+    cerca: null,
   });
 });
 
@@ -250,6 +257,7 @@ describe('cantar', () => {
           equipped: {},
           card: CARTON,
           coinsWon: 0,
+          potWon: 0,
         },
       ],
     });
@@ -290,6 +298,7 @@ describe('pantalla de victoria', () => {
           equipped: {},
           card: CARTON,
           coinsWon: 0,
+          potWon: 0,
         },
       ],
     });
@@ -311,6 +320,7 @@ describe('pantalla de victoria', () => {
       equipped: {},
       card: CARTON,
       coinsWon: 0,
+      potWon: 0,
     });
 
     socketFalso.servidorEmite('game:finished', {
@@ -347,5 +357,101 @@ describe('pantalla de victoria', () => {
     await userEvent.click(screen.getByRole('button', { name: t.victoria.volverALaSala }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+});
+
+describe('el cartón no delata los números cantados', () => {
+  it('un número que ya salió pero no se marcó se ve igual que los demás', async () => {
+    // El jugador tiene que estar atento: el cartón solo muestra lo que él marcó.
+    await entrarEnPartida(estadoEnJuego({ drawn: [40, 20, 1] }));
+
+    const carton = screen.getByRole('group', { name: t.partida.cartonNumero(1) });
+    const cantadoSinMarcar = within(carton).getByRole('button', { name: '40' });
+    const sinCantar = within(carton).getByRole('button', { name: '41' });
+
+    expect(cantadoSinMarcar).toHaveAttribute('aria-pressed', 'false');
+    expect(sinCantar).toHaveAttribute('aria-pressed', 'false');
+    // Misma pinta: nada distingue al que ya salió.
+    expect(cantadoSinMarcar.className).toBe(sinCantar.className);
+    expect(cantadoSinMarcar.getAttribute('style')).toBe(sinCantar.getAttribute('style'));
+  });
+
+  it('el tablero sí lleva el registro general', async () => {
+    await entrarEnPartida(estadoEnJuego({ drawn: [40] }));
+
+    const tablero = screen.getByRole('region', { name: t.partida.tablero });
+    expect(within(tablero).getByText('40')).toHaveAttribute('data-cantado', 'si');
+  });
+});
+
+describe('aviso de que alguien está por ganar', () => {
+  it('sale con el nombre y cuántos le faltan, y se va solo', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await entrarEnPartida();
+
+    socketFalso.servidorEmite('game:playerClose', {
+      userId: 'usuario-2',
+      username: 'la_juanita',
+      remaining: 2,
+    });
+
+    expect(await screen.findByText(t.partida.leFaltan('la_juanita', 2))).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(5_000);
+    });
+    await waitFor(() =>
+      expect(screen.queryByText(t.partida.leFaltan('la_juanita', 2))).not.toBeInTheDocument(),
+    );
+    vi.useRealTimers();
+  });
+
+  it('con un solo número que falte el texto va en singular', async () => {
+    await entrarEnPartida();
+
+    socketFalso.servidorEmite('game:playerClose', {
+      userId: 'usuario-2',
+      username: 'el_tito',
+      remaining: 1,
+    });
+
+    expect(await screen.findByText('¡A el_tito le falta 1 número!')).toBeInTheDocument();
+  });
+});
+
+describe('pozo de apuestas', () => {
+  it('se muestra durante la partida', async () => {
+    const estado = estadoEnJuego({ pot: 2500 });
+    estado.settings.apuestas = true;
+    await entrarEnPartida(estado);
+
+    expect(screen.getByText(t.partida.pozo('$2.500'))).toBeInTheDocument();
+  });
+
+  it('el ganador ve el pozo que se llevó junto a su mensaje', async () => {
+    const estado = estadoEnJuego({ drawn: TODOS, pot: 3000 });
+    estado.settings.apuestas = true;
+    await entrarEnPartida(estado);
+
+    socketFalso.servidorEmite('game:finished', {
+      reason: 'LOTA',
+      drawn: TODOS,
+      winners: [
+        {
+          userId: 'usuario-2',
+          username: 'la_juanita',
+          victoryMessage: 'Se cayó la lota, compadre',
+          equipped: {},
+          card: CARTON,
+          coinsWon: 60,
+          potWon: 3000,
+        },
+      ],
+    });
+
+    const overlay = await screen.findByRole('dialog');
+    expect(within(overlay).getByText(t.victoria.seLlevaElPozo('$3.000'))).toBeInTheDocument();
+    expect(within(overlay).getByText(/Se cayó la lota, compadre/)).toBeInTheDocument();
+    expect(within(overlay).getByText(t.victoria.monedas(60))).toBeInTheDocument();
   });
 });

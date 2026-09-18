@@ -11,6 +11,7 @@ import lobbyPlugin from './lobby/plugin.js';
 import { authRoutes } from './routes/auth.js';
 import { lobbyRoutes } from './routes/lobbies.js';
 import { meRoutes } from './routes/me.js';
+import { shopRoutes } from './routes/shop.js';
 import socketPlugin from './socket/index.js';
 
 /**
@@ -65,6 +66,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(authRoutes, { prefix: '/api' });
   await app.register(meRoutes, { prefix: '/api' });
   await app.register(lobbyRoutes, { prefix: '/api' });
+  await app.register(shopRoutes, { prefix: '/api' });
 
   await registerSpa(app);
 

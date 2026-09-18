@@ -160,6 +160,45 @@ falla en esta máquina. Para usar el suyo: `pnpm exec playwright install chromiu
 La SPA se sirve **cuando existe el build**, no según `NODE_ENV`: en producción las cookies son
 `secure` y no viajarían por el http del e2e.
 
+## Economía, apuestas y cosméticos (Fase 6)
+
+Monedas virtuales y cosméticos en `apps/server/src/economy/`. Los números de balance viven en
+`packages/shared/src/economy.ts` y el catálogo de cosméticos en `packages/shared/src/cosmetics.ts`,
+compartido: el servidor lo usa para sembrar la tabla y el cliente para pintar colores y formas
+sin tener que pedirlos.
+
+- `users.coins` es un **saldo derivado**: la fuente de verdad es `coin_transactions`. Cada
+  movimiento se hace en una transacción que inserta el apunte y actualiza el saldo.
+- Gastar usa `update ... where coins >= precio`: **lo decide Postgres**, así que dos compras a la
+  vez no pueden dejar el saldo negativo. Hay un test de compras concurrentes que lo comprueba.
+- Anti-farmeo: jugar solo no da monedas, y hay un tope de 500 al día por usuario. El bono diario
+  no cuenta para ese tope.
+- Los cosméticos gratis cuentan como propios desde el principio: son el punto de partida.
+
+### Apuestas
+
+**Son un registro entre amigos, no dinero de verdad.** La aplicación anota cuánto puso cada
+quien y quién se llevó el pozo; el arreglo queda entre los jugadores. No hay pasarela de pago ni
+saldo real en ninguna parte, y no tienen nada que ver con las monedas virtuales. Si algún día se
+quisiera mover dinero real, eso necesita pasarela de pagos y cumplimiento de normativa de juegos
+de azar: no basta con cambiar estas pantallas.
+
+Los montos van de $500 en $500 (`BET_STEP`). Apagar el interruptor de apuestas borra lo anotado,
+para que nadie quede comprometido sin saberlo.
+
+### El cartón no delata los números cantados
+
+A propósito: quien juega tiene que estar atento al locutor y al tablero, como en la lota de
+verdad. El cartón **solo** muestra lo que uno marcó; el tablero de 90 lleva el registro general.
+Hay un test que compara clase y estilo de un número cantado sin marcar contra uno que no ha
+salido, para que nadie vuelva a "ayudar" resaltándolos.
+
+### Aviso de que alguien está por ganar
+
+Tras cada número, el servidor mira a cuánto está cada jugador de la lota en su mejor cartón y
+avisa a la sala entera cuando le quedan 3, 2 o 1. Cada jugador dispara como mucho un aviso por
+escalón (`closeAnnounced`), así que bajar de 3 a 2 avisa una vez y no se repite.
+
 ## Local vs produccion
 
 |               | Local                        | Produccion (Render)                                              |
@@ -211,5 +250,5 @@ Ante una decision de producto que `PLAN.md` no cubra: **preguntar antes de imple
 - [x] Fase 3 — Salas
 - [x] Fase 4 — Partida
 - [x] Fase 5 — Locutor
-- [ ] Fase 6 — Economia y tienda
+- [x] Fase 6 — Economia y tienda
 - [ ] Fase 7 — Produccion en Render + Neon

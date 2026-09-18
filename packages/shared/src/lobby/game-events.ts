@@ -15,8 +15,18 @@ export interface WinnerView {
   equipped: Record<string, string>;
   /** Carton con el que gano, para mostrarlo en la pantalla de victoria. */
   card: Card;
-  /** Monedas ganadas. Siempre 0 hasta la Fase 6. */
+  /** Monedas virtuales ganadas. */
   coinsWon: number;
+  /** Pozo de apuestas que se llevo, en pesos. 0 si la sala no apostaba. */
+  potWon: number;
+}
+
+/** Aviso a la sala de que a alguien le faltan pocos numeros para la lota. */
+export interface PlayerCloseToWin {
+  userId: string;
+  username: string;
+  /** Cuantos numeros le faltan: 3, 2 o 1. */
+  remaining: number;
 }
 
 export type ClaimType = 'LINE' | 'FULL';

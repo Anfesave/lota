@@ -1,7 +1,8 @@
-import type { ClaimType, LobbyStateView } from '@lota/shared';
+import { formatPesos, type ClaimType, type LobbyStateView } from '@lota/shared';
 import { type ReactNode, useEffect, useState } from 'react';
 import { t } from '../../i18n/es-CL.js';
 import { useLobbyStore } from '../../stores/lobby.js';
+import { AvisoCerca } from './AvisoCerca.js';
 import { Bola } from './Bola.js';
 import { Carton } from './Carton.js';
 import { Tablero } from './Tablero.js';
@@ -30,18 +31,21 @@ function calcular(hasta: number | undefined): number {
 
 interface PartidaProps {
   estado: LobbyStateView;
+  /** Cosméticos del propio jugador, para pintar su cartón. */
+  misCosmeticos: Record<string, string>;
   /** Controles del locutor, que aporta la Fase 5. */
   controlesLocutor?: ReactNode;
   dicho?: string | undefined;
 }
 
-export function Partida({ estado, controlesLocutor, dicho }: PartidaProps) {
+export function Partida({ estado, misCosmeticos, controlesLocutor, dicho }: PartidaProps) {
   const cuentaAtras = useLobbyStore((s) => s.cuentaAtras);
   const ultimoNumero = useLobbyStore((s) => s.ultimoNumero);
   const ganadoresLinea = useLobbyStore((s) => s.ganadoresLinea);
   const cantadosLista = useLobbyStore((s) => s.cantados);
   const marcasLista = useLobbyStore((s) => s.marcas);
   const rechazo = useLobbyStore((s) => s.rechazo);
+  const cerca = useLobbyStore((s) => s.cerca);
   const marcar = useLobbyStore((s) => s.marcar);
   const cantar = useLobbyStore((s) => s.cantar);
   const limpiarRechazo = useLobbyStore((s) => s.limpiarRechazo);
@@ -87,6 +91,14 @@ export function Partida({ estado, controlesLocutor, dicho }: PartidaProps) {
 
   return (
     <div className="flex flex-col gap-4">
+      {cerca ? <AvisoCerca aviso={cerca} /> : null}
+
+      {estado.settings.apuestas && estado.pot > 0 ? (
+        <p className="rounded-lg border border-lota-oro/30 bg-lota-oro/10 px-3 py-2 text-center text-sm font-bold text-lota-oro">
+          {t.partida.pozo(formatPesos(estado.pot))}
+        </p>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,18rem)_1fr]">
         <Bola
           ultimo={ultimoNumero}
@@ -133,9 +145,9 @@ export function Partida({ estado, controlesLocutor, dicho }: PartidaProps) {
                 carton={carton}
                 indice={indice}
                 marcados={marcados}
-                cantados={cantados}
                 autoMarcado={estado.settings.autoMark}
                 onMarcar={(numero) => void marcar(indice, numero)}
+                equipped={misCosmeticos}
               />
 
               <div className="flex gap-2">

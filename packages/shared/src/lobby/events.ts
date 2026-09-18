@@ -1,6 +1,18 @@
 import type { Card } from '../game/types.js';
-import type { ClaimRejected, GameFinished, NumberCalled, WinnerView } from './game-events.js';
-import type { ClaimInput, JoinLobbyInput, MarkInput, UpdateSettingsInput } from './schemas.js';
+import type {
+  ClaimRejected,
+  GameFinished,
+  NumberCalled,
+  PlayerCloseToWin,
+  WinnerView,
+} from './game-events.js';
+import type {
+  ClaimInput,
+  JoinLobbyInput,
+  MarkInput,
+  SetBetInput,
+  UpdateSettingsInput,
+} from './schemas.js';
 import type {
   ChatMessage,
   LobbyError,
@@ -27,6 +39,8 @@ export interface ClientToServerEvents {
   'lobby:ready': (payload: { ready: boolean }, ack: Ack) => void;
   'lobby:updateSettings': (payload: UpdateSettingsInput, ack: Ack) => void;
   'lobby:kick': (payload: { userId: string }, ack: Ack) => void;
+  /** Anotar (o cambiar) la apuesta propia; solo con la sala parada. */
+  'lobby:setBet': (payload: SetBetInput, ack: Ack) => void;
   'chat:send': (payload: { text: string }, ack: Ack) => void;
 
   /** Solo el anfitrion, y solo en WAITING. */
@@ -51,6 +65,8 @@ export interface ServerToClientEvents {
   /** Solo al que canto mal. */
   'game:claimRejected': (payload: ClaimRejected) => void;
   'game:lineWon': (payload: { winners: WinnerView[] }) => void;
+  /** A alguien le faltan 3, 2 o 1 numeros: lo ve toda la sala. */
+  'game:playerClose': (payload: PlayerCloseToWin) => void;
   'game:finished': (payload: GameFinished) => void;
 
   /** Render reinicia el servicio: las salas en memoria se pierden. */

@@ -13,6 +13,11 @@ export interface LobbySettings {
   autoMark: boolean;
   /** Si el locutor dice los dichos tradicionales ademas del numero. */
   dichos: boolean;
+  /**
+   * Si los jugadores pueden anotar una apuesta antes de empezar. Es un
+   * **registro entre amigos**: la aplicacion no mueve dinero (ver economy.ts).
+   */
+  apuestas: boolean;
 }
 
 /** Cosmeticos equipados por tipo. Se llena en la Fase 6. */
@@ -29,6 +34,8 @@ export interface LobbyPlayerView {
   connected: boolean;
   isHost: boolean;
   equipped: EquippedCosmetics;
+  /** Lo que anoto para el pozo; 0 si no apuesta o la sala no tiene apuestas. */
+  bet: number;
 }
 
 /**
@@ -61,6 +68,10 @@ export interface LobbyStateView {
   lineWinnerIds: string[];
   /** Quienes ganaron el carton lleno. */
   winnerIds: string[];
+  /** Suma de las apuestas de la sala. */
+  pot: number;
+  /** Lo que apostó el destinatario del mensaje. */
+  yourBet: number;
 }
 
 /** Fila del listado de salas publicas. */
@@ -109,7 +120,12 @@ export type LobbyErrorCode =
   | 'LINEA_YA_GANADA'
   | 'FALTAN_JUGADORES'
   /** El cliente se canso de esperar el acuse; no lo genera el servidor. */
-  | 'SIN_RESPUESTA';
+  | 'SIN_RESPUESTA'
+  | 'APUESTAS_DESACTIVADAS'
+  | 'APUESTA_INVALIDA'
+  | 'SALDO_INSUFICIENTE'
+  | 'YA_LO_TIENES'
+  | 'COSMETICO_NO_EXISTE';
 
 export interface LobbyError {
   code: LobbyErrorCode;

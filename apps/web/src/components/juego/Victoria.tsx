@@ -1,4 +1,4 @@
-import type { GameFinished } from '@lota/shared';
+import { formatPesos, type GameFinished } from '@lota/shared';
 import { t } from '../../i18n/es-CL.js';
 import { Carton } from './Carton.js';
 
@@ -15,6 +15,7 @@ interface VictoriaProps {
 export function Victoria({ final, onVolver, onSalir }: VictoriaProps) {
   const cantados = new Set(final.drawn);
   const hayGanadores = final.winners.length > 0;
+  const pozoRepartido = final.winners.length > 1 && (final.winners[0]?.potWon ?? 0) > 0;
 
   return (
     <div
@@ -43,10 +44,16 @@ export function Victoria({ final, onVolver, onSalir }: VictoriaProps) {
                   &ldquo;{ganador.victoryMessage}&rdquo;
                 </p>
 
+                {ganador.potWon > 0 ? (
+                  <p className="rounded-full bg-lota-oro/15 px-4 py-1.5 text-lg font-black text-lota-oro">
+                    {t.victoria.seLlevaElPozo(formatPesos(ganador.potWon))}
+                  </p>
+                ) : null}
+
                 <p className="text-sm text-slate-500">
                   {ganador.coinsWon > 0
                     ? t.victoria.monedas(ganador.coinsWon)
-                    : t.victoria.monedasProximaFase}
+                    : t.victoria.sinMonedas}
                 </p>
 
                 <div className="w-full max-w-sm">
@@ -57,15 +64,19 @@ export function Victoria({ final, onVolver, onSalir }: VictoriaProps) {
                     carton={ganador.card}
                     indice={0}
                     marcados={cantados}
-                    cantados={cantados}
                     autoMarcado
                     onMarcar={() => undefined}
+                    equipped={ganador.equipped}
                   />
                 </div>
               </li>
             ))}
           </ul>
         )}
+
+        {pozoRepartido ? (
+          <p className="text-xs text-slate-500">{t.victoria.pozoEntreVarios}</p>
+        ) : null}
 
         <div className="flex flex-wrap justify-center gap-2">
           <button

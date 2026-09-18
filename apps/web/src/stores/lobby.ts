@@ -7,6 +7,7 @@ import type {
   LobbySettings,
   LobbyStateView,
   NumberCalled,
+  PlayerCloseToWin,
   WinnerView,
 } from '@lota/shared';
 import { create } from 'zustand';
@@ -36,11 +37,14 @@ interface LobbyStoreState {
   final: GameFinished | null;
   /** Última lota rechazada, con el bloqueo que dejó. */
   rechazo: ClaimRejected | null;
+  /** Aviso en pantalla de que a alguien le quedan pocos números. */
+  cerca: PlayerCloseToWin | null;
 
   escuchar: () => void;
   entrar: (code: string, password?: string) => Promise<AckResponse<LobbyStateView>>;
   salir: () => Promise<void>;
   marcarListo: (ready: boolean) => Promise<AckResponse>;
+  apostar: (amount: number) => Promise<AckResponse>;
   cambiarConfig: (cambios: Partial<LobbySettings>) => Promise<AckResponse>;
   expulsar: (userId: string) => Promise<AckResponse>;
   enviarChat: (text: string) => Promise<AckResponse>;
@@ -52,6 +56,7 @@ interface LobbyStoreState {
   limpiarAviso: () => void;
   cerrarVictoria: () => void;
   limpiarRechazo: () => void;
+  limpiarCerca: () => void;
   olvidarSala: () => void;
 }
 
@@ -59,7 +64,14 @@ let escuchando = false;
 
 type EstadoPartida = Pick<
   LobbyStoreState,
-  'cuentaAtras' | 'ultimoNumero' | 'cantados' | 'marcas' | 'ganadoresLinea' | 'final' | 'rechazo'
+  | 'cuentaAtras'
+  | 'ultimoNumero'
+  | 'cantados'
+  | 'marcas'
+  | 'ganadoresLinea'
+  | 'final'
+  | 'rechazo'
+  | 'cerca'
 >;
 
 /** True si el número está en alguno de mis cartones. */
@@ -77,6 +89,7 @@ function sinPartida(): EstadoPartida {
     ganadoresLinea: [],
     final: null,
     rechazo: null,
+    cerca: null,
   };
 }
 
@@ -138,6 +151,7 @@ export const useLobbyStore = create<LobbyStoreState>((set, get) => ({
       socket.on('game:lineWon', ({ winners }) => set({ ganadoresLinea: winners }));
       socket.on('game:finished', (final) => set({ final }));
       socket.on('game:claimRejected', (rechazo) => set({ rechazo }));
+      socket.on('game:playerClose', (cerca) => set({ cerca }));
     }
 
     conectarSocket();
@@ -170,6 +184,7 @@ export const useLobbyStore = create<LobbyStoreState>((set, get) => ({
   },
 
   marcarListo: (ready) => emitirConAck('lobby:ready', { ready }),
+  apostar: (amount) => emitirConAck('lobby:setBet', { amount }),
   cambiarConfig: (cambios) => emitirConAck('lobby:updateSettings', cambios),
   expulsar: (userId) => emitirConAck('lobby:kick', { userId }),
   enviarChat: (text) => emitirConAck('chat:send', { text }),
@@ -192,6 +207,7 @@ export const useLobbyStore = create<LobbyStoreState>((set, get) => ({
   limpiarAviso: () => set({ aviso: null }),
   cerrarVictoria: () => set({ final: null }),
   limpiarRechazo: () => set({ rechazo: null }),
+  limpiarCerca: () => set({ cerca: null }),
   olvidarSala: () => set({ estado: null, mensajes: [], ...sinPartida() }),
 }));
 

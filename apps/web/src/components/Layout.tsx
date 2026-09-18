@@ -38,7 +38,13 @@ export function Layout() {
         <Link to="/" className="text-xl font-black tracking-tight text-lota-oro">
           {t.app.nombre}
         </Link>
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <Link to="/tienda" className="text-slate-300 hover:text-lota-oro">
+            {t.tienda.enlace}
+          </Link>
+          <Link to="/perfil" className="text-slate-300 hover:text-lota-oro">
+            {t.perfil.enlace}
+          </Link>
           <span className="text-slate-400">{t.inicio.saludo(user.username)}</span>
           <span className="rounded-full bg-lota-oro/15 px-2.5 py-0.5 font-semibold text-lota-oro">
             {user.coins}

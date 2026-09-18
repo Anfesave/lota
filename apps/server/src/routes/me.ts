@@ -3,8 +3,9 @@ import type { FastifyPluginAsync } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { users, type UserRow } from '../db/schema.js';
+import { getEquipped } from '../economy/cosmetics.js';
 
-/** Proyeccion publica del usuario. `equipped` se llenara en la Fase 6. */
+/** Proyeccion publica del usuario, sin los cosmeticos equipados. */
 export function toCurrentUser(user: UserRow): CurrentUser {
   return {
     id: user.id,
@@ -16,10 +17,15 @@ export function toCurrentUser(user: UserRow): CurrentUser {
   };
 }
 
+/** Igual que `toCurrentUser`, pero consultando los cosmeticos equipados. */
+export async function toCurrentUserWithEquipped(user: UserRow): Promise<CurrentUser> {
+  return { ...toCurrentUser(user), equipped: await getEquipped(user.id) };
+}
+
 export const meRoutes: FastifyPluginAsync = async (app) => {
   app.get('/me', { preHandler: app.requireAuth }, async (request) => {
     // requireAuth ya respondio 401 si no habia usuario.
-    return toCurrentUser(request.user!);
+    return toCurrentUserWithEquipped(request.user!);
   });
 
   app.patch('/me', { preHandler: app.requireAuth }, async (request, reply) => {
@@ -37,6 +43,6 @@ export const meRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(users.id, request.user!.id))
       .returning();
 
-    return toCurrentUser(actualizado!);
+    return toCurrentUserWithEquipped(actualizado!);
   });
 };

@@ -37,3 +37,21 @@ body {
     animation: none;
   }
 }
+
+/* Entrada del aviso de "le faltan pocos numeros". */
+@keyframes aviso {
+  from {
+    transform: translateY(-1rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[aviso_300ms_ease-out\] {
+    animation: none;
+  }
+}

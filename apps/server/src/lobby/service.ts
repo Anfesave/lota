@@ -4,8 +4,11 @@ import {
   DEFAULT_LOBBY_SETTINGS,
   DISCONNECT_GRACE_MS,
   LOBBY_EMPTY_TTL_MS,
+  BET_STEP,
   MAX_PLAYERS,
+  isValidBet,
   type ChatMessage,
+  type EquippedCosmetics,
   type LobbyErrorCode,
   type LobbyPlayerView,
   type LobbyPreview,
@@ -76,7 +79,13 @@ export async function createLobby(
 }
 
 export interface JoinLobbyOptions {
-  user: { id: string; username: string; victoryMessage: string };
+  user: {
+    id: string;
+    username: string;
+    victoryMessage: string;
+    /** Cosmeticos equipados; los ve toda la sala (PLAN.md seccion 9). */
+    equipped: EquippedCosmetics;
+  };
   password?: string | undefined;
 }
 
@@ -114,7 +123,8 @@ export async function joinLobby(lobby: Lobby, opciones: JoinLobbyOptions): Promi
     connected: true,
     cards: [],
     marks: new Set(),
-    equipped: {},
+    equipped: user.equipped,
+    bet: 0,
     joinedAt: Date.now(),
   };
 
@@ -178,6 +188,39 @@ export function setReady(lobby: Lobby, userId: string, ready: boolean): void {
   jugador.ready = ready;
 }
 
+/**
+ * Anota la apuesta de un jugador. Solo con la sala parada y si la sala tiene
+ * apuestas activadas; el monto ya viene validado por Zod (multiplos de 500).
+ */
+export function setBet(lobby: Lobby, userId: string, amount: number): void {
+  const jugador = requirePlayer(lobby, userId);
+
+  if (!lobby.settings.apuestas) {
+    throw new LobbyOperationError('APUESTAS_DESACTIVADAS', 'Esta sala no tiene apuestas.');
+  }
+  if (!isLobbyIdle(lobby)) {
+    throw new LobbyOperationError(
+      'PARTIDA_EN_CURSO',
+      'No se puede apostar con la partida en curso.',
+    );
+  }
+  if (!isValidBet(amount)) {
+    throw new LobbyOperationError(
+      'APUESTA_INVALIDA',
+      `La apuesta va de ${BET_STEP} en ${BET_STEP}.`,
+    );
+  }
+
+  jugador.bet = amount;
+}
+
+/** Suma de lo anotado por todos. */
+export function potOfLobby(lobby: Lobby): number {
+  let total = 0;
+  for (const jugador of lobby.players.values()) total += jugador.bet;
+  return total;
+}
+
 export function updateSettings(
   lobby: Lobby,
   userId: string,
@@ -195,6 +238,11 @@ export function updateSettings(
 
   // Cambiar las reglas invalida los "listo" que ya había: nadie acepta a ciegas.
   for (const jugador of lobby.players.values()) jugador.ready = false;
+
+  // Apagar las apuestas borra lo anotado: nadie queda comprometido sin saberlo.
+  if (!lobby.settings.apuestas) {
+    for (const jugador of lobby.players.values()) jugador.bet = 0;
+  }
 
   return lobby.settings;
 }
@@ -306,6 +354,7 @@ export function toPlayerView(lobby: Lobby, jugador: LobbyPlayer): LobbyPlayerVie
     connected: jugador.connected,
     isHost: lobby.hostId === jugador.userId,
     equipped: jugador.equipped,
+    bet: jugador.bet,
   };
 }
 
@@ -334,6 +383,8 @@ export function toLobbyStateView(lobby: Lobby, viewerId: string): LobbyStateView
     ...(yo?.claimBlockedUntil !== undefined ? { yourClaimBlockedUntil: yo.claimBlockedUntil } : {}),
     lineWinnerIds: [...lobby.lineWinnerIds],
     winnerIds: [...lobby.winnerIds],
+    pot: potOfLobby(lobby),
+    yourBet: yo?.bet ?? 0,
   };
 }
 

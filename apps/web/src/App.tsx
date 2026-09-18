@@ -4,8 +4,10 @@ import { Layout } from './components/Layout.js';
 import { RutaProtegida } from './components/RutaProtegida.js';
 import { Lobby } from './pages/Lobby.js';
 import { Login } from './pages/Login.js';
+import { Perfil } from './pages/Perfil.js';
 import { Registro } from './pages/Registro.js';
 import { Sala } from './pages/Sala.js';
+import { Tienda } from './pages/Tienda.js';
 import { useAuthStore } from './stores/auth.js';
 
 export function App() {
@@ -31,6 +33,8 @@ export function App() {
       >
         <Route path="/" element={<Lobby />} />
         <Route path="/sala/:code" element={<Sala />} />
+        <Route path="/tienda" element={<Tienda />} />
+        <Route path="/perfil" element={<Perfil />} />
       </Route>
 
       {/* Si ya hay sesion, entrar y registro no tienen sentido. */}

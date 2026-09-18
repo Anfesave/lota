@@ -1,7 +1,11 @@
 import {
+  BET_STEP,
   CALL_INTERVALS_MS,
+  MAX_BET,
   MAX_CARDS_PER_PLAYER,
+  MIN_BET,
   MIN_CARDS_PER_PLAYER,
+  formatPesos,
   type LobbyPreview,
   type LobbySettings,
   type LobbyStateView,
@@ -150,6 +154,7 @@ export function Sala() {
           {enJuego ? (
             <Partida
               estado={estado}
+              misCosmeticos={user.equipped}
               controlesLocutor={<ControlesLocutor locutor={locutor} />}
               dicho={locutor.dicho}
             />
@@ -307,6 +312,9 @@ function ListaJugadores({
             <span className="flex flex-wrap items-center gap-2">
               <span className="font-medium text-slate-100">{jugador.username}</span>
               {jugador.isHost ? <Etiqueta tono="oro">{t.sala.anfitrion}</Etiqueta> : null}
+              {estado.settings.apuestas && jugador.bet > 0 ? (
+                <Etiqueta tono="oro">{t.sala.apuestaDe(formatPesos(jugador.bet))}</Etiqueta>
+              ) : null}
               {!jugador.connected ? (
                 <Etiqueta tono="gris">{t.sala.desconectado}</Etiqueta>
               ) : jugador.ready ? (
@@ -452,6 +460,21 @@ function Configuracion({
           <span className="block text-xs text-slate-500">{t.sala.dichosAyuda}</span>
         </span>
       </label>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={settings.apuestas}
+          disabled={!editable}
+          onChange={(evento) => cambiar({ apuestas: evento.target.checked })}
+          className="mt-1"
+        />
+        <span>
+          <span className="font-medium text-slate-200">{t.sala.apuestas}</span>
+          <span className="block text-xs text-slate-500">{t.sala.apuestasAyuda}</span>
+          <span className="block text-xs text-slate-600">{t.sala.apuestasRegistro}</span>
+        </span>
+      </label>
     </section>
   );
 }
@@ -495,6 +518,8 @@ function Acciones({
         {listo ? t.sala.marcarNoListo : t.sala.marcarListo}
       </button>
 
+      {estado.settings.apuestas ? <PanelApuesta estado={estado} /> : null}
+
       {soyAnfitrion ? (
         <button
           type="button"
@@ -507,6 +532,75 @@ function Acciones({
 
       <PlazasLibres estado={estado} />
     </section>
+  );
+}
+
+/**
+ * Apuesta propia y pozo de la sala. Los montos van de $500 en $500; la app
+ * solo lleva la cuenta, no mueve dinero (ver economy.ts).
+ */
+function PanelApuesta({ estado }: { estado: LobbyStateView }) {
+  const apostar = useLobbyStore((s) => s.apostar);
+  const [error, setError] = useState<string | null>(null);
+
+  async function cambiar(nuevo: number) {
+    setError(null);
+    const monto = Math.min(MAX_BET, Math.max(MIN_BET, nuevo));
+    const respuesta = await apostar(monto);
+    if (!respuesta.ok) setError(respuesta.error.message);
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-lota-oro/25 bg-lota-oro/5 p-3">
+      <p className="text-xs uppercase tracking-wide text-slate-500">{t.sala.tuApuesta}</p>
+
+      {error ? (
+        <p role="alert" className="text-xs text-rose-300">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void cambiar(estado.yourBet - BET_STEP)}
+          disabled={estado.yourBet <= MIN_BET}
+          aria-label={t.sala.bajarApuesta}
+          className="size-8 rounded-lg border border-slate-700 font-bold text-slate-300 transition hover:bg-slate-800 disabled:opacity-40"
+        >
+          −
+        </button>
+
+        <output className="flex-1 text-center text-lg font-black tabular-nums text-lota-oro">
+          {formatPesos(estado.yourBet)}
+        </output>
+
+        <button
+          type="button"
+          onClick={() => void cambiar(estado.yourBet + BET_STEP)}
+          disabled={estado.yourBet >= MAX_BET}
+          aria-label={t.sala.subirApuesta}
+          className="size-8 rounded-lg border border-slate-700 font-bold text-slate-300 transition hover:bg-slate-800 disabled:opacity-40"
+        >
+          +
+        </button>
+      </div>
+
+      {estado.yourBet > 0 ? (
+        <button
+          type="button"
+          onClick={() => void cambiar(0)}
+          className="text-xs text-slate-500 hover:underline"
+        >
+          {t.sala.quitarApuesta}
+        </button>
+      ) : null}
+
+      <p className="border-t border-slate-800 pt-2 text-sm text-slate-300">
+        {t.sala.pozoTotal}:{' '}
+        <span className="font-bold text-lota-oro">{formatPesos(estado.pot)}</span>
+      </p>
+    </div>
   );
 }
 

@@ -21,6 +21,10 @@ export interface LobbyPlayer {
   cards: Card[];
   marks: Set<number>;
   claimBlockedUntil?: number;
+  /** Lo que anoto para el pozo, en pesos. Registro, no dinero movido. */
+  bet: number;
+  /** Menor umbral de "le faltan N" ya avisado, para no repetirlo. */
+  closeAnnounced?: number;
   /** Con que carton gano, para mostrarlo en la pantalla de victoria. */
   winningCardIndex?: number;
   equipped: EquippedCosmetics;

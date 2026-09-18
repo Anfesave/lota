@@ -1,4 +1,4 @@
-import { loginSchema, registerSchema } from '@lota/shared';
+import { COINS_DAILY_BONUS, loginSchema, registerSchema } from '@lota/shared';
 import { eq } from 'drizzle-orm';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { AUTH_RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW } from '../auth/constants.js';
@@ -7,7 +7,8 @@ import { clearSessionCookie, readSessionToken, setSessionCookie } from '../auth/
 import { createSession, revokeSession } from '../auth/sessions.js';
 import { getDb } from '../db/index.js';
 import { users } from '../db/schema.js';
-import { toCurrentUser } from './me.js';
+import { grantCoins, hasClaimedDailyBonus } from '../economy/coins.js';
+import { toCurrentUser, toCurrentUserWithEquipped } from './me.js';
 
 /** Codigo de violacion de restriccion unica en Postgres. */
 const PG_UNIQUE_VIOLATION = '23505';
@@ -112,7 +113,19 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
     const { token } = await createSession(usuario.id);
     setSessionCookie(reply, token);
-    return toCurrentUser(usuario);
+
+    // Bono por el primer inicio de sesion del dia (PLAN.md seccion 9).
+    try {
+      if (!(await hasClaimedDailyBonus(usuario.id))) {
+        await grantCoins(usuario.id, COINS_DAILY_BONUS, 'DAILY_BONUS');
+        usuario.coins += COINS_DAILY_BONUS;
+      }
+    } catch (error) {
+      // Que falle el bono no puede impedir entrar.
+      app.log.error(error, 'no se pudo dar el bono diario');
+    }
+
+    return toCurrentUserWithEquipped(usuario);
   });
 
   app.post('/auth/logout', async (request, reply) => {

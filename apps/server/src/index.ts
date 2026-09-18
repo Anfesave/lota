@@ -1,6 +1,7 @@
 import { buildApp } from './app.js';
 import { SESSION_CLEANUP_INTERVAL_MS } from './auth/constants.js';
 import { deleteExpiredSessions } from './auth/sessions.js';
+import { seedCosmetics } from './economy/cosmetics.js';
 import { env } from './env.js';
 
 const app = await buildApp();
@@ -34,6 +35,11 @@ for (const senal of ['SIGINT', 'SIGTERM'] as const) {
 try {
   await app.listen({ port: env.PORT, host: env.HOST });
   void limpiarSesiones();
+
+  // Los cosmeticos de salida se insertan o actualizan en cada arranque.
+  seedCosmetics().catch((error: unknown) =>
+    app.log.error(error, 'no se pudieron sembrar los cosmeticos'),
+  );
 } catch (error) {
   app.log.error(error);
   process.exit(1);
