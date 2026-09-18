@@ -55,7 +55,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) {
       return reply.status(400).send({
         code: 'DATOS_INVALIDOS',
-        message: parsed.error.issues[0]?.message ?? 'Datos invalidos.',
+        message: parsed.error.issues[0]?.message ?? 'Datos inválidos.',
       });
     }
 
@@ -77,7 +77,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       if (esViolacionDeUnicidad(error)) {
         return reply
           .status(409)
-          .send({ code: 'USUARIO_EXISTE', message: 'Ese nombre de usuario ya esta tomado.' });
+          .send({ code: 'USUARIO_EXISTE', message: 'Ese nombre de usuario ya está tomado.' });
       }
       throw error;
     }
@@ -89,7 +89,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const credencialesInvalidas = () =>
       reply
         .status(401)
-        .send({ code: 'CREDENCIALES_INVALIDAS', message: 'Usuario o contrasena incorrectos.' });
+        .send({ code: 'CREDENCIALES_INVALIDAS', message: 'Usuario o contraseña incorrectos.' });
 
     if (!parsed.success) return credencialesInvalidas();
 

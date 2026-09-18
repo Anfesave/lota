@@ -51,7 +51,7 @@ const authPlugin: FastifyPluginAsync = async (app) => {
 
   app.decorate('requireAuth', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!request.user) {
-      await reply.status(401).send({ code: 'NO_AUTENTICADO', message: 'Inicia sesion primero.' });
+      await reply.status(401).send({ code: 'NO_AUTENTICADO', message: 'Inicia sesión primero.' });
     }
   });
 };

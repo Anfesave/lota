@@ -54,7 +54,7 @@ function simularApi(manejador: (peticion: Peticion) => Respuesta) {
 
 const SIN_SESION: Respuesta = {
   status: 401,
-  body: { code: 'NO_AUTENTICADO', message: 'Inicia sesion primero.' },
+  body: { code: 'NO_AUTENTICADO', message: 'Inicia sesión primero.' },
 };
 
 function renderizar(ruta = '/') {
@@ -135,7 +135,7 @@ describe('entrar', () => {
             status: 401,
             body: {
               code: 'CREDENCIALES_INVALIDAS',
-              message: 'Usuario o contrasena incorrectos.',
+              message: 'Usuario o contraseña incorrectos.',
             },
           }
         : SIN_SESION,
@@ -146,7 +146,7 @@ describe('entrar', () => {
     await userEvent.type(screen.getByLabelText(t.auth.contrasena), 'claveMala1');
     await userEvent.click(screen.getByRole('button', { name: t.auth.botonEntrar }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Usuario o contrasena incorrectos.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Usuario o contraseña incorrectos.');
   });
 
   it('traduce el 429 del rate limit a un aviso en espanol', async () => {

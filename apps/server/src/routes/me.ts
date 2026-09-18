@@ -27,7 +27,7 @@ export const meRoutes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) {
       return reply.status(400).send({
         code: 'DATOS_INVALIDOS',
-        message: parsed.error.issues[0]?.message ?? 'Datos invalidos.',
+        message: parsed.error.issues[0]?.message ?? 'Datos inválidos.',
       });
     }
 

@@ -53,9 +53,7 @@ export function Inicio() {
       <section className="rounded-2xl border border-dashed border-slate-700 p-5 text-center">
         <p className="font-semibold text-slate-300">{t.inicio.proximamente}</p>
         <p className="mt-1 text-sm text-slate-500">{t.inicio.proximamenteDetalle}</p>
-        <p className="mt-3 text-xs text-slate-600">
-          Bolillero de 1 a 90 &middot; hasta {MAX_PLAYERS} jugadores por sala
-        </p>
+        <p className="mt-3 text-xs text-slate-600">{t.inicio.resumenJuego(MAX_PLAYERS)}</p>
       </section>
     </main>
   );

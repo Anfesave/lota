@@ -116,7 +116,7 @@ describe('POST /api/auth/login', () => {
 
     const res = await iniciarSesion(nombre, 'otraClaveDistinta1');
     expect(res.statusCode).toBe(401);
-    expect(res.json().message).toBe('Usuario o contrasena incorrectos.');
+    expect(res.json().message).toBe('Usuario o contraseña incorrectos.');
     expect(res.cookies.find((c) => c.name === SESSION_COOKIE_NAME)).toBeUndefined();
   });
 
@@ -124,7 +124,7 @@ describe('POST /api/auth/login', () => {
     // No debe filtrarse que usuarios estan registrados.
     const res = await iniciarSesion(nombreUnico('fantasma'), CLAVE);
     expect(res.statusCode).toBe(401);
-    expect(res.json().message).toBe('Usuario o contrasena incorrectos.');
+    expect(res.json().message).toBe('Usuario o contraseña incorrectos.');
   });
 
   it('corta al sexto intento fallido en un minuto', async () => {

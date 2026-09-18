@@ -42,7 +42,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(
       res.status,
       typeof error.code === 'string' ? error.code : 'ERROR',
-      typeof error.message === 'string' ? error.message : 'Algo salio mal.',
+      typeof error.message === 'string' ? error.message : 'Algo salió mal.',
     );
   }
 

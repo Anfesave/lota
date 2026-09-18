@@ -16,21 +16,21 @@ export const usernameSchema = z
   .trim()
   .min(USERNAME_MIN_LENGTH, `El nombre debe tener al menos ${USERNAME_MIN_LENGTH} caracteres.`)
   .max(USERNAME_MAX_LENGTH, `El nombre no puede pasar de ${USERNAME_MAX_LENGTH} caracteres.`)
-  .regex(USERNAME_PATTERN, 'Solo se permiten letras, numeros y guion bajo.')
-  .refine((valor) => !containsBannedWord(valor), 'Ese nombre no esta permitido.');
+  .regex(USERNAME_PATTERN, 'Solo se permiten letras, números y guion bajo.')
+  .refine((valor) => !containsBannedWord(valor), 'Ese nombre no está permitido.');
 
 export const passwordSchema = z
   .string()
-  .min(PASSWORD_MIN_LENGTH, `La contrasena debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`)
+  .min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`)
   // El limite de 72 viene de argon2/bcrypt: mas alla los bytes se ignorarian.
-  .max(PASSWORD_MAX_LENGTH, `La contrasena no puede pasar de ${PASSWORD_MAX_LENGTH} caracteres.`);
+  .max(PASSWORD_MAX_LENGTH, `La contraseña no puede pasar de ${PASSWORD_MAX_LENGTH} caracteres.`);
 
 export const victoryMessageSchema = z
   .string()
   .trim()
   .min(1, 'Escribe un mensaje de victoria.')
-  .max(MAX_VICTORY_MESSAGE_LENGTH, `Maximo ${MAX_VICTORY_MESSAGE_LENGTH} caracteres.`)
-  .refine((valor) => !containsBannedWord(valor), 'Ese mensaje no esta permitido.');
+  .max(MAX_VICTORY_MESSAGE_LENGTH, `Máximo ${MAX_VICTORY_MESSAGE_LENGTH} caracteres.`)
+  .refine((valor) => !containsBannedWord(valor), 'Ese mensaje no está permitido.');
 
 export const registerSchema = z.object({
   username: usernameSchema,

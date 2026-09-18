@@ -68,6 +68,26 @@ mensaje que lo explica; no se saltan en silencio.
   dejar fuera a otro agotandole los intentos. El login responde siempre lo mismo exista o no el
   usuario, y hashea igual cuando no existe para no delatarlo por tiempo de respuesta.
 
+## Logica del juego (Fase 2)
+
+Vive en `packages/shared/src/game/`, sin red ni base de datos, y esta cubierta al 100% por tests
+de propiedades sobre 10.000 cartones.
+
+- `generateCard` / `generateUniqueCards` / `cardKey` / `cardNumbers` / `columnRange` / `columnOf`
+- `checkLine` / `checkFull` / `findCompletedLine`
+- `createBag`
+
+**La aleatoriedad se inyecta**: todas estas funciones reciben un `RandomInt` y no tienen valor
+por defecto. Es deliberado por dos razones. Primero, el servidor debe pasar `crypto.randomInt`
+(PLAN.md seccion 3): si esto cayera en `Math.random` por descuido, los cartones y el bolillero
+serian predecibles. Segundo, mantiene el paquete isomorfico, porque importar `node:crypto` aqui
+romperia el bundle del navegador. Para tests hay `createSeededRandomInt`, determinista, que
+**no debe usarse en produccion**.
+
+Un carton se construye en tres pasos: cuantos numeros lleva cada columna (1 a 3, sumando 15),
+que filas ocupa cada columna (vuelta atras, para que cada fila quede con 5 exactos) y que
+numeros concretos van, ordenados de menor a mayor hacia abajo.
+
 ## Local vs produccion
 
 |               | Local                        | Produccion (Render)                                              |
@@ -115,7 +135,7 @@ Ante una decision de producto que `PLAN.md` no cubra: **preguntar antes de imple
 
 - [x] Fase 0 — Andamiaje
 - [x] Fase 1 — Autenticacion
-- [ ] Fase 2 — Logica pura del juego
+- [x] Fase 2 — Logica pura del juego
 - [ ] Fase 3 — Salas
 - [ ] Fase 4 — Partida
 - [ ] Fase 5 — Locutor
