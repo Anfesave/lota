@@ -1,10 +1,14 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
+import authPlugin from './auth/plugin.js';
 import { pingDb } from './db/index.js';
 import { env, isProduction, isTest } from './env.js';
+import { authRoutes } from './routes/auth.js';
+import { meRoutes } from './routes/me.js';
 
 /**
  * En produccion el mismo proceso sirve la SPA compilada y la API, para que todo
@@ -46,6 +50,14 @@ export async function buildApp(): Promise<FastifyInstance> {
       return reply.status(503).send({ status: 'error', latencyMs: Date.now() - inicio });
     }
   });
+
+  // `global: false`: solo limitan las rutas que lo piden en su `config`.
+  // `hook: 'preHandler'` para que la clave pueda leer el username del cuerpo.
+  await app.register(fastifyRateLimit, { global: false, hook: 'preHandler' });
+
+  await app.register(authPlugin);
+  await app.register(authRoutes, { prefix: '/api' });
+  await app.register(meRoutes, { prefix: '/api' });
 
   await registerSpa(app);
 

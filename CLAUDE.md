@@ -43,6 +43,31 @@ En produccion `SESSION_SECRET` y `DATABASE_URL` son obligatorios y explicitos: e
 si quedaron en los valores de desarrollo. **Nunca** commitear secretos; `.env` esta en
 `.gitignore`.
 
+## Tests
+
+`packages/shared` y `apps/web` corren sin dependencias externas. Los de `apps/server` son de
+**integracion contra Postgres de verdad**: levanta la base con `pnpm db:up` antes de `pnpm test`.
+Usan una base aparte, `lota_test`, que se crea y migra sola (`apps/server/vitest.global-setup.ts`),
+asi que no tocan los datos de desarrollo. Si Postgres no responde, los tests fallan con un
+mensaje que lo explica; no se saltan en silencio.
+
+## Autenticacion (Fase 1)
+
+- Contrasenas con **argon2id** (19 MiB, 2 iteraciones, 1 hilo: recomendacion OWASP). Usamos
+  `@node-rs/argon2` en vez del paquete `argon2` porque trae binarios precompilados para Windows
+  y para Linux: mismo algoritmo, sin cadena de compilacion nativa en local ni en Render.
+- Sesion en cookie `httpOnly`, `sameSite=lax`, `secure` solo en produccion. La cookie lleva un
+  token de 32 bytes **firmado** con `SESSION_SECRET`; en la tabla `sessions` solo se guarda su
+  SHA-256. La firma permite descartar cookies falsas sin consultar la base, algo que importa con
+  Neon dormido.
+- Las sesiones vencidas se borran al arrancar y una vez al dia, no mas seguido (horas de computo
+  de Neon).
+- `username` es `citext`: la unicidad y el login ignoran mayusculas. La extension la crea la
+  migracion `0001`.
+- Login y registro con rate limit de 5 por minuto **por IP + usuario**, para que nadie pueda
+  dejar fuera a otro agotandole los intentos. El login responde siempre lo mismo exista o no el
+  usuario, y hashea igual cuando no existe para no delatarlo por tiempo de respuesta.
+
 ## Local vs produccion
 
 |               | Local                        | Produccion (Render)                                              |
@@ -89,7 +114,7 @@ Ante una decision de producto que `PLAN.md` no cubra: **preguntar antes de imple
 ### Estado actual
 
 - [x] Fase 0 — Andamiaje
-- [ ] Fase 1 — Autenticacion
+- [x] Fase 1 — Autenticacion
 - [ ] Fase 2 — Logica pura del juego
 - [ ] Fase 3 — Salas
 - [ ] Fase 4 — Partida
