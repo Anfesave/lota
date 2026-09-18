@@ -71,12 +71,18 @@ export async function buildApp(): Promise<FastifyInstance> {
   return app;
 }
 
-/** Sirve apps/web/dist con fallback a index.html para las rutas del router. */
+/**
+ * Sirve apps/web/dist con fallback a index.html para las rutas del router.
+ *
+ * Se activa por la existencia del build, no por NODE_ENV: así los tests e2e
+ * pueden servir la SPA sin arrancar en modo producción, que exigiría HTTPS
+ * para las cookies de sesión. En desarrollo normal no hay build y manda Vite.
+ */
 async function registerSpa(app: FastifyInstance): Promise<void> {
-  if (!isProduction) return;
-
   if (!existsSync(join(WEB_DIST, 'index.html'))) {
-    app.log.warn({ WEB_DIST }, 'no se encontro el build de la SPA; se sirve solo la API');
+    if (isProduction) {
+      app.log.error({ WEB_DIST }, 'falta el build de la SPA: solo se sirve la API');
+    }
     return;
   }
 

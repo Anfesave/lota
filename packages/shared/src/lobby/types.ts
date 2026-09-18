@@ -11,6 +11,8 @@ export interface LobbySettings {
   prizeMode: PrizeMode;
   /** Si el sistema marca los numeros solo, en vez de hacerlo el jugador. */
   autoMark: boolean;
+  /** Si el locutor dice los dichos tradicionales ademas del numero. */
+  dichos: boolean;
 }
 
 /** Cosmeticos equipados por tipo. Se llena en la Fase 6. */
@@ -44,10 +46,21 @@ export interface LobbyStateView {
   settings: LobbySettings;
   players: LobbyPlayerView[];
   maxPlayers: number;
-  /** Numeros ya cantados, en orden. Vacio hasta la Fase 4. */
+  /** Numeros ya cantados, en orden. */
   drawn: number[];
-  /** Cartones del destinatario del mensaje. Vacio hasta la Fase 4. */
+  /** Cartones del destinatario del mensaje; nunca los de otros. */
   yourCards: Card[];
+  /**
+   * Numeros que el destinatario lleva marcados. Viaja en el estado para que al
+   * reconectar recupere su carton tal como lo tenia.
+   */
+  yourMarks: number[];
+  /** Hasta cuando no puede volver a cantar tras una lota invalida. */
+  yourClaimBlockedUntil?: number;
+  /** Quienes ganaron la linea, si el modo la incluye. */
+  lineWinnerIds: string[];
+  /** Quienes ganaron el carton lleno. */
+  winnerIds: string[];
 }
 
 /** Fila del listado de salas publicas. */
@@ -87,7 +100,16 @@ export type LobbyErrorCode =
   | 'NO_ERES_ANFITRION'
   | 'NO_ESTAS_EN_SALA'
   | 'DATOS_INVALIDOS'
-  | 'DEMASIADO_RAPIDO';
+  | 'DEMASIADO_RAPIDO'
+  | 'PARTIDA_NO_EMPEZADA'
+  | 'NUMERO_NO_CANTADO'
+  | 'CARTON_INVALIDO'
+  | 'CLAIM_BLOQUEADO'
+  | 'CLAIM_INVALIDO'
+  | 'LINEA_YA_GANADA'
+  | 'FALTAN_JUGADORES'
+  /** El cliente se canso de esperar el acuse; no lo genera el servidor. */
+  | 'SIN_RESPUESTA';
 
 export interface LobbyError {
   code: LobbyErrorCode;

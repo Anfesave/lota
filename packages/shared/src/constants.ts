@@ -62,3 +62,15 @@ export const CHAT_RATE_LIMIT_MS = 1000;
 
 /** Cuantos mensajes de chat recientes guarda una sala. */
 export const CHAT_HISTORY_SIZE = 50;
+
+/**
+ * Ventana de empate: si otro jugador canta valido con el mismo ultimo numero
+ * dentro de este margen, tambien gana y el premio se reparte (PLAN.md 3).
+ */
+export const TIE_WINDOW_MS = 1500;
+
+/** Minimo de jugadores para empezar. Uno permite practicar solo, sin monedas. */
+export const MIN_PLAYERS_TO_START = 1;
+
+/** Jugadores humanos minimos para que la partida reparta monedas (Fase 6). */
+export const MIN_PLAYERS_FOR_COINS = 2;

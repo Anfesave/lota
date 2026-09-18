@@ -10,6 +10,8 @@ import { Server, type Socket } from 'socket.io';
 import { SESSION_COOKIE_NAME } from '../auth/constants.js';
 import { findUserBySessionToken } from '../auth/sessions.js';
 import type { UserRow } from '../db/schema.js';
+import { callIntervalOverride, countdownOverride } from '../env.js';
+import { GameRunner } from '../game/runner.js';
 import { sweepLobbies, toLobbyStateView } from '../lobby/service.js';
 import type { LobbyStore } from '../lobby/store.js';
 import { registerLobbyHandlers } from './lobbyHandlers.js';
@@ -28,6 +30,7 @@ export type LotaSocket = Socket<ClientToServerEvents, ServerToClientEvents, neve
 declare module 'fastify' {
   interface FastifyInstance {
     io: LotaServer;
+    games: GameRunner;
   }
 }
 
@@ -58,6 +61,44 @@ const socketPlugin: FastifyPluginAsync = async (app) => {
   });
 
   app.decorate('io', io);
+
+  /**
+   * El runner solo sabe avisar; quien manda los eventos por la red es esta
+   * capa. Asi el motor de la partida no depende de Socket.IO.
+   */
+  const games = new GameRunner(
+    app.lobbies,
+    {
+      countdown: (lobbyId, seconds) => {
+        io.to(lobbyRoom(lobbyId)).emit('game:countdown', { seconds });
+      },
+      started: async (lobbyId) => {
+        const lobby = app.lobbies.getById(lobbyId);
+        if (!lobby) return;
+        // Cada uno recibe solo sus cartones.
+        for (const socket of await io.in(lobbyRoom(lobbyId)).fetchSockets()) {
+          const jugador = lobby.players.get(socket.data.user.id);
+          socket.emit('game:started', { yourCards: jugador?.cards ?? [] });
+        }
+      },
+      numberCalled: (lobbyId, payload) => {
+        io.to(lobbyRoom(lobbyId)).emit('game:numberCalled', payload);
+      },
+      lineWon: (lobbyId, winners) => {
+        io.to(lobbyRoom(lobbyId)).emit('game:lineWon', { winners });
+      },
+      finished: (lobbyId, payload) => {
+        io.to(lobbyRoom(lobbyId)).emit('game:finished', payload);
+      },
+      state: (lobbyId) => emitLobbyState(io, app.lobbies, lobbyId),
+      error: (mensaje, error) => app.log.error(error, mensaje),
+    },
+    {
+      ...(countdownOverride !== undefined ? { countdownSeconds: countdownOverride } : {}),
+      callIntervalMsOverride: callIntervalOverride,
+    },
+  );
+  app.decorate('games', games);
 
   /**
    * Autenticación en el handshake: sin sesión válida no se acepta la conexión.
@@ -102,6 +143,7 @@ const socketPlugin: FastifyPluginAsync = async (app) => {
 
   app.addHook('onClose', async () => {
     clearInterval(temporizador);
+    games.stopAll();
     // Render da unos segundos de gracia: avisamos antes de cortar.
     io.emit('server:shutdown', { reason: 'El servidor se está reiniciando.' });
     await io.close();
@@ -110,7 +152,11 @@ const socketPlugin: FastifyPluginAsync = async (app) => {
 
 /** Exportado para que los tests puedan forzar un barrido sin esperar al reloj. */
 export async function barrer(
-  app: { lobbies: LobbyStore; log: { error: (...args: unknown[]) => void } },
+  app: {
+    lobbies: LobbyStore;
+    log: { error: (...args: unknown[]) => void };
+    games?: { stop: (lobbyId: string) => void };
+  },
   io: LotaServer,
   ahora = Date.now(),
 ): Promise<void> {
@@ -131,6 +177,9 @@ export async function barrer(
         username: cambio.username,
       });
     }
+    // Una sala borrada no debe dejar el locutor corriendo.
+    for (const lobbyId of resultado.deletedLobbyIds) app.games?.stop(lobbyId);
+
     for (const lobbyId of tocadas) {
       if (resultado.deletedLobbyIds.includes(lobbyId)) continue;
       await emitLobbyState(io, app.lobbies, lobbyId);

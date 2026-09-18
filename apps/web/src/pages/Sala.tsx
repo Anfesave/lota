@@ -10,6 +10,9 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Campo } from '../components/Campo.js';
 import { Chat } from '../components/Chat.js';
+import { Partida } from '../components/juego/Partida.js';
+import { Victoria } from '../components/juego/Victoria.js';
+import { ControlesLocutor, useLocutor } from '../components/juego/Locutor.js';
 import { t } from '../i18n/es-CL.js';
 import { api, ApiError } from '../lib/api.js';
 import { useAuthStore } from '../stores/auth.js';
@@ -29,6 +32,9 @@ export function Sala() {
   const salir = useLobbyStore((s) => s.salir);
   const limpiarAviso = useLobbyStore((s) => s.limpiarAviso);
   const olvidarSala = useLobbyStore((s) => s.olvidarSala);
+  const final = useLobbyStore((s) => s.final);
+  const cerrarVictoria = useLobbyStore((s) => s.cerrarVictoria);
+  const locutor = useLocutor();
 
   const [fase, setFase] = useState<Fase>('cargando');
   const [error, setError] = useState<string | null>(null);
@@ -133,22 +139,48 @@ export function Sala() {
 
   const soyAnfitrion = estado.hostId === user.id;
   const yo = estado.players.find((jugador) => jugador.userId === user.id);
+  const enJuego = estado.status === 'COUNTDOWN' || estado.status === 'PLAYING';
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-6">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-6">
       <Encabezado estado={estado} onSalir={() => void abandonar()} />
 
       <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
-        <div className="flex flex-col gap-5">
-          <ListaJugadores estado={estado} soyAnfitrion={soyAnfitrion} miId={user.id} />
-          <Configuracion estado={estado} soyAnfitrion={soyAnfitrion} />
+        <div className="flex min-w-0 flex-col gap-5">
+          {enJuego ? (
+            <Partida
+              estado={estado}
+              controlesLocutor={<ControlesLocutor locutor={locutor} />}
+              dicho={locutor.dicho}
+            />
+          ) : (
+            <>
+              <ListaJugadores estado={estado} soyAnfitrion={soyAnfitrion} miId={user.id} />
+              <Configuracion estado={estado} soyAnfitrion={soyAnfitrion} />
+            </>
+          )}
         </div>
 
         <div className="flex flex-col gap-5">
-          <Acciones estado={estado} soyAnfitrion={soyAnfitrion} listo={yo?.ready ?? false} />
+          {enJuego ? (
+            <ListaJugadores estado={estado} soyAnfitrion={false} miId={user.id} />
+          ) : (
+            <Acciones estado={estado} soyAnfitrion={soyAnfitrion} listo={yo?.ready ?? false} />
+          )}
           <Chat mensajes={mensajes} onEnviar={useLobbyStore.getState().enviarChat} />
         </div>
       </div>
+
+      {final ? (
+        <Victoria
+          final={final}
+          onVolver={cerrarVictoria}
+          onSalir={() => {
+            cerrarVictoria();
+            void abandonar();
+          }}
+        />
+      ) : null}
     </main>
   );
 }
@@ -406,6 +438,20 @@ function Configuracion({
           <span className="block text-xs text-slate-500">{t.sala.autoMarcadoAyuda}</span>
         </span>
       </label>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={settings.dichos}
+          disabled={!editable}
+          onChange={(evento) => cambiar({ dichos: evento.target.checked })}
+          className="mt-1"
+        />
+        <span>
+          <span className="font-medium text-slate-200">{t.sala.dichos}</span>
+          <span className="block text-xs text-slate-500">{t.sala.dichosAyuda}</span>
+        </span>
+      </label>
     </section>
   );
 }
@@ -420,9 +466,23 @@ function Acciones({
   listo: boolean;
 }) {
   const marcarListo = useLobbyStore((s) => s.marcarListo);
+  const empezar = useLobbyStore((s) => s.empezar);
+  const [error, setError] = useState<string | null>(null);
+
+  async function comenzar() {
+    setError(null);
+    const respuesta = await empezar();
+    if (!respuesta.ok) setError(respuesta.error.message);
+  }
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+      {error ? (
+        <p role="alert" className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+          {error}
+        </p>
+      ) : null}
+
       <button
         type="button"
         onClick={() => void marcarListo(!listo)}
@@ -436,17 +496,13 @@ function Acciones({
       </button>
 
       {soyAnfitrion ? (
-        <div>
-          <button
-            type="button"
-            disabled
-            title={t.sala.comenzarProximaFase}
-            className="w-full rounded-lg border border-slate-700 px-4 py-2.5 font-bold text-slate-400 opacity-60"
-          >
-            {t.sala.comenzar}
-          </button>
-          <p className="mt-1.5 text-center text-xs text-slate-600">{t.sala.comenzarProximaFase}</p>
-        </div>
+        <button
+          type="button"
+          onClick={() => void comenzar()}
+          className="rounded-lg bg-lota-oro px-4 py-2.5 font-black text-slate-900 transition hover:brightness-110"
+        >
+          {t.sala.comenzar}
+        </button>
       ) : null}
 
       <PlazasLibres estado={estado} />

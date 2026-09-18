@@ -28,9 +28,12 @@ describe('servidor http', () => {
     expect(Date.now() - inicio).toBeLessThan(500);
   });
 
-  it('una ruta inexistente responde 404', async () => {
-    const res = await app.inject({ method: 'GET', url: '/no-existe' });
+  it('una ruta de API inexistente responde 404 en JSON', async () => {
+    // Las rutas que no son de API caen en el fallback de la SPA, asi que su
+    // respuesta depende de si hay build; eso lo cubren los tests e2e.
+    const res = await app.inject({ method: 'GET', url: '/api/no-existe' });
     expect(res.statusCode).toBe(404);
+    expect(res.json()).toMatchObject({ code: 'NOT_FOUND' });
   });
 });
 

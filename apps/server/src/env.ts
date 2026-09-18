@@ -22,6 +22,13 @@ const envSchema = z.object({
 
   /** Solo aplica en desarrollo: en produccion la SPA y la API comparten origen. */
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+
+  /**
+   * Aceleran la partida para los tests e2e (PLAN.md fase 4). Se ignoran en
+   * produccion: nadie debe poder acelerar el sorteo de una partida real.
+   */
+  TEST_CALL_INTERVAL_MS: z.coerce.number().int().positive().optional(),
+  TEST_COUNTDOWN_SECONDS: z.coerce.number().int().min(0).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -47,6 +54,10 @@ function loadEnv(): Env {
 export const env = loadEnv();
 export const isProduction = env.NODE_ENV === 'production';
 export const isTest = env.NODE_ENV === 'test';
+
+/** Velocidad del locutor forzada, solo fuera de produccion. */
+export const callIntervalOverride = isProduction ? undefined : env.TEST_CALL_INTERVAL_MS;
+export const countdownOverride = isProduction ? undefined : env.TEST_COUNTDOWN_SECONDS;
 
 /** Cadena para migraciones: la directa si existe, si no la normal (caso local). */
 export const migrationDatabaseUrl = env.DATABASE_URL_DIRECT ?? env.DATABASE_URL;

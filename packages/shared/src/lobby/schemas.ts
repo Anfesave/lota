@@ -9,7 +9,9 @@ import {
   LOBBY_PASSWORD_MIN_LENGTH,
   MAX_CARDS_PER_PLAYER,
   MAX_CHAT_MESSAGE_LENGTH,
+  MAX_NUMBER,
   MIN_CARDS_PER_PLAYER,
+  MIN_NUMBER,
 } from '../constants.js';
 import { containsBannedWord } from '../words.js';
 import type { LobbySettings } from './types.js';
@@ -54,6 +56,7 @@ export const lobbySettingsSchema = z.object({
   callIntervalMs: callIntervalSchema,
   prizeMode: prizeModeSchema,
   autoMark: z.boolean(),
+  dichos: z.boolean(),
 });
 
 /** Configuración con la que nace una sala. */
@@ -62,6 +65,7 @@ export const DEFAULT_LOBBY_SETTINGS: LobbySettings = {
   callIntervalMs: CALL_INTERVALS_MS[1],
   prizeMode: 'LINEA_Y_CARTON',
   autoMark: false,
+  dichos: true,
 };
 
 export const createLobbySchema = z
@@ -98,6 +102,27 @@ export const chatSendSchema = z.object({
     .min(1, 'Escribe algo.')
     .max(MAX_CHAT_MESSAGE_LENGTH, `Máximo ${MAX_CHAT_MESSAGE_LENGTH} caracteres.`),
 });
+
+export const markSchema = z.object({
+  cardIndex: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_CARDS_PER_PLAYER - 1),
+  number: z.number().int().min(MIN_NUMBER).max(MAX_NUMBER),
+});
+
+export const claimSchema = z.object({
+  type: z.enum(['LINE', 'FULL']),
+  cardIndex: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_CARDS_PER_PLAYER - 1),
+});
+
+export type MarkInput = z.infer<typeof markSchema>;
+export type ClaimInput = z.infer<typeof claimSchema>;
 
 export type CreateLobbyInput = z.infer<typeof createLobbySchema>;
 export type JoinLobbyInput = z.infer<typeof joinLobbySchema>;

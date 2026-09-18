@@ -61,6 +61,8 @@ export async function createLobby(
     players: new Map(),
     drawn: [],
     bag: [],
+    lineWinnerIds: [],
+    winnerIds: [],
     chat: [],
     createdAt: Date.now(),
   };
@@ -74,7 +76,7 @@ export async function createLobby(
 }
 
 export interface JoinLobbyOptions {
-  user: { id: string; username: string };
+  user: { id: string; username: string; victoryMessage: string };
   password?: string | undefined;
 }
 
@@ -91,7 +93,7 @@ export async function joinLobby(lobby: Lobby, opciones: JoinLobbyOptions): Promi
     return existente;
   }
 
-  if (lobby.status !== 'WAITING') {
+  if (!isLobbyIdle(lobby)) {
     throw new LobbyOperationError('PARTIDA_EN_CURSO', 'La partida ya empezó.');
   }
   if (lobby.players.size >= MAX_PLAYERS) {
@@ -107,6 +109,7 @@ export async function joinLobby(lobby: Lobby, opciones: JoinLobbyOptions): Promi
   const jugador: LobbyPlayer = {
     userId: user.id,
     username: user.username,
+    victoryMessage: user.victoryMessage,
     ready: false,
     connected: true,
     cards: [],
@@ -143,6 +146,14 @@ export function removePlayer(lobby: Lobby, userId: string): { newHostId?: string
   return {};
 }
 
+/**
+ * La sala acepta cambios (entrar, listo, configuración, empezar) cuando no hay
+ * partida en curso. FINISHED cuenta como parada: se puede jugar otra.
+ */
+export function isLobbyIdle(lobby: Lobby): boolean {
+  return lobby.status === 'WAITING' || lobby.status === 'FINISHED';
+}
+
 /** El jugador más antiguo de la sala; hereda el rol de anfitrión. */
 function oldestPlayer(lobby: Lobby): LobbyPlayer | undefined {
   let elegido: LobbyPlayer | undefined;
@@ -161,7 +172,7 @@ export function markDisconnected(lobby: Lobby, userId: string): void {
 
 export function setReady(lobby: Lobby, userId: string, ready: boolean): void {
   const jugador = requirePlayer(lobby, userId);
-  if (lobby.status !== 'WAITING') {
+  if (!isLobbyIdle(lobby)) {
     throw new LobbyOperationError('PARTIDA_EN_CURSO', 'La partida ya empezó.');
   }
   jugador.ready = ready;
@@ -173,7 +184,7 @@ export function updateSettings(
   cambios: Partial<LobbySettings>,
 ): LobbySettings {
   requireHost(lobby, userId);
-  if (lobby.status !== 'WAITING') {
+  if (!isLobbyIdle(lobby)) {
     throw new LobbyOperationError(
       'PARTIDA_EN_CURSO',
       'No se puede cambiar con la partida en curso.',
@@ -251,7 +262,7 @@ export function sweepLobbies(store: LobbyStore, ahora = Date.now()): SweepResult
 
   for (const lobby of store.all()) {
     // Durante la partida nadie pierde su sitio por desconectarse.
-    if (lobby.status === 'WAITING') {
+    if (isLobbyIdle(lobby)) {
       for (const jugador of [...lobby.players.values()]) {
         const caido = !jugador.connected && jugador.disconnectedAt !== undefined;
         if (!caido || ahora - jugador.disconnectedAt! < DISCONNECT_GRACE_MS) continue;
@@ -304,6 +315,7 @@ export function toPlayerView(lobby: Lobby, jugador: LobbyPlayer): LobbyPlayerVie
  */
 export function toLobbyStateView(lobby: Lobby, viewerId: string): LobbyStateView {
   const jugadores = [...lobby.players.values()].sort((a, b) => a.joinedAt - b.joinedAt);
+  const yo = lobby.players.get(viewerId);
 
   return {
     id: lobby.id,
@@ -317,7 +329,11 @@ export function toLobbyStateView(lobby: Lobby, viewerId: string): LobbyStateView
     players: jugadores.map((jugador) => toPlayerView(lobby, jugador)),
     maxPlayers: MAX_PLAYERS,
     drawn: [...lobby.drawn],
-    yourCards: lobby.players.get(viewerId)?.cards ?? [],
+    yourCards: yo?.cards ?? [],
+    yourMarks: yo ? [...yo.marks] : [],
+    ...(yo?.claimBlockedUntil !== undefined ? { yourClaimBlockedUntil: yo.claimBlockedUntil } : {}),
+    lineWinnerIds: [...lobby.lineWinnerIds],
+    winnerIds: [...lobby.winnerIds],
   };
 }
 

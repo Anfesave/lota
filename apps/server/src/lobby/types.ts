@@ -14,11 +14,15 @@ import type {
 export interface LobbyPlayer {
   userId: string;
   username: string;
+  /** Se copia al entrar: la pantalla de victoria lo muestra sin ir a la BD. */
+  victoryMessage: string;
   ready: boolean;
   connected: boolean;
   cards: Card[];
   marks: Set<number>;
   claimBlockedUntil?: number;
+  /** Con que carton gano, para mostrarlo en la pantalla de victoria. */
+  winningCardIndex?: number;
   equipped: EquippedCosmetics;
   /** Para elegir al anfitrión más antiguo cuando el actual se cae. */
   joinedAt: number;
@@ -45,8 +49,12 @@ export interface Lobby {
   drawn: number[];
   /** Números que faltan, ya barajados. **Nunca** se manda al cliente. */
   bag: number[];
-  lineWinnerIds?: string[];
-  winnerIds?: string[];
+  lineWinnerIds: string[];
+  winnerIds: string[];
+  /** Fin de la ventana de empate de la linea; despues ya no se puede cantar. */
+  lineClosesAt?: number;
+  /** Fin de la ventana de empate del carton lleno. */
+  fullClosesAt?: number;
   chat: ChatMessage[];
   createdAt: number;
   /** Desde cuándo no queda nadie; sirve para borrarla a los 2 minutos. */

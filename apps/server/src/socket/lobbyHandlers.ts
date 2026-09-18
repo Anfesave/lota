@@ -1,9 +1,11 @@
 import {
   CHAT_RATE_LIMIT_MS,
   chatSendSchema,
+  claimSchema,
   joinLobbySchema,
   kickSchema,
   lobbyRoom,
+  markSchema,
   readySchema,
   updateSettingsSchema,
   type Ack,
@@ -24,7 +26,9 @@ import {
   toPlayerView,
   updateSettings,
 } from '../lobby/service.js';
+import { claim, markNumber, prepareGame } from '../game/engine.js';
 import type { Lobby } from '../lobby/types.js';
+import { cryptoRandomInt } from '../random.js';
 import { emitLobbyState, type LotaServer, type LotaSocket } from './index.js';
 
 /**
@@ -91,7 +95,11 @@ export function registerLobbyHandlers(
 
       const yaEstaba = lobby.players.has(usuario.id);
       await joinLobby(lobby, {
-        user: { id: usuario.id, username: usuario.username },
+        user: {
+          id: usuario.id,
+          username: usuario.username,
+          victoryMessage: usuario.victoryMessage,
+        },
         password,
       });
 
@@ -184,6 +192,54 @@ export function registerLobbyHandlers(
       socket.data.lastChatAt = ahora;
 
       io.to(lobbyRoom(lobby.id)).emit('chat:message', mensaje);
+      return undefined;
+    });
+  });
+
+  socket.on('game:start', (ack) => {
+    responder(app, ack, async () => {
+      const lobby = salaActual();
+      prepareGame(lobby, usuario.id, cryptoRandomInt);
+
+      app.games.start(lobby);
+      await emitLobbyState(io, app.lobbies, lobby.id);
+      return undefined;
+    });
+  });
+
+  socket.on('game:mark', (payload, ack) => {
+    responder(app, ack, () => {
+      const { cardIndex, number } = markSchema.parse(payload);
+      const lobby = salaActual();
+
+      markNumber(lobby, usuario.id, cardIndex, number);
+
+      // La marca es solo del jugador: no se difunde a la sala entera.
+      socket.emit('lobby:state', toLobbyStateView(lobby, usuario.id));
+      return undefined;
+    });
+  });
+
+  socket.on('game:claim', (payload, ack) => {
+    responder(app, ack, async () => {
+      const { type, cardIndex } = claimSchema.parse(payload);
+      const lobby = salaActual();
+
+      const resultado = claim(lobby, usuario.id, type, cardIndex);
+
+      if (resultado.kind === 'RECHAZADO') {
+        socket.emit('game:claimRejected', {
+          type,
+          reason: resultado.reason,
+          blockedUntil: resultado.blockedUntil,
+        });
+        return undefined;
+      }
+
+      // El anuncio lo hace el runner cuando cierra la ventana de empate, para
+      // que quien cante con el mismo numero tambien entre en el premio.
+      app.games.onClaim(lobby, resultado);
+      await emitLobbyState(io, app.lobbies, lobby.id);
       return undefined;
     });
   });

@@ -18,3 +18,22 @@ body {
   background-color: var(--color-lota-fondo);
   -webkit-text-size-adjust: 100%;
 }
+
+/* Entrada de la bola del locutor: aparece girando y creciendo. */
+@keyframes bola {
+  from {
+    transform: scale(0.4) rotate(-25deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* Quien prefiere menos movimiento no ve el giro. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[bola_400ms_ease-out\] {
+    animation: none;
+  }
+}

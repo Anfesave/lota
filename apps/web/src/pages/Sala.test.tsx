@@ -40,6 +40,7 @@ function estadoDeSala(cambios: Partial<LobbyStateView> = {}): LobbyStateView {
       callIntervalMs: 5000,
       prizeMode: 'LINEA_Y_CARTON',
       autoMark: false,
+      dichos: false,
     },
     players: [
       {
@@ -55,6 +56,9 @@ function estadoDeSala(cambios: Partial<LobbyStateView> = {}): LobbyStateView {
     maxPlayers: MAX_PLAYERS,
     drawn: [],
     yourCards: [],
+    yourMarks: [],
+    lineWinnerIds: [],
+    winnerIds: [],
     ...cambios,
   };
 }

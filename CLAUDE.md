@@ -111,6 +111,55 @@ suya. Cambiar a Redis para varias instancias sería reimplementar esa interfaz.
 - Cambiar la configuración reinicia los "listo": nadie acepta reglas a ciegas.
 - Chat limitado a 1 mensaje por segundo y por socket; solo se guardan los 50 últimos.
 
+## La partida (Fase 4)
+
+El motor vive en `apps/server/src/game/`, separado en dos piezas: `engine.ts` es lógica pura
+sobre el estado de la sala (repartir, sacar número, marcar, validar un canto) y `runner.ts` lleva
+los relojes. El runner solo sabe _avisar_; quien manda los eventos por la red es la capa de
+sockets, así el motor no depende de Socket.IO.
+
+- El locutor **encadena `setTimeout`**, nunca `setInterval` (PLAN.md 7): así un canto lento no se
+  solapa con el siguiente y parar es inmediato.
+- Los cantos se validan contra **los números efectivamente cantados**, no contra lo que el
+  jugador tenga marcado. Las marcas son cosméticas; el cliente no decide nada.
+- **Empates**: la primera lota válida detiene el sorteo y abre una ventana de 1,5 s
+  (`TIE_WINDOW_MS`); quien cante bien dentro de ella también gana. Por eso el anuncio lo hace el
+  runner al cerrar la ventana, no el manejador del evento.
+- Cantar mal cuesta 10 s de bloqueo, para que no se pueda pulsar sin parar.
+- `game:numberCalled` es un evento **ligero**: el cliente acumula los números cantados y, con
+  marcado automático, marca de su lado. Mandar el estado completo en cada número sería caro.
+  `lobby:state` (entrada y reconexión) es lo que resincroniza.
+- Al terminar, la sala queda en `FINISHED`, que se comporta como `WAITING`: se puede jugar otra
+  sin volver a crearla.
+
+`TEST_CALL_INTERVAL_MS` y `TEST_COUNTDOWN_SECONDS` aceleran la partida para los tests. **Se
+ignoran en producción**: nadie debe poder acelerar el sorteo de una partida real.
+
+## El locutor (Fase 5)
+
+`apps/web/src/lib/announcer.ts` define la interfaz `Announcer` con una implementación sobre la
+Web Speech API. Está pensada para cambiarla por los 90 clips pregrabados de la sección 8 del plan
+sin tocar quien la usa. La voz se elige `es-CL` → `es-419` → `es-*`, en ese orden.
+
+- **iOS no deja sonar nada sin un gesto del usuario**: por eso hay un botón "Activar sonido"
+  antes de que aparezcan los controles.
+- Volumen y silencio son **locales** y se recuerdan en `localStorage`; no afectan a los demás.
+- El número **siempre** se ve en pantalla, aunque el audio esté apagado.
+- Los dichos están en `packages/shared/src/dichos.ts`, **pensado para que lo completes**. Se
+  activan por sala con el interruptor `dichos`.
+
+## Tests e2e
+
+`apps/e2e` (Playwright) levanta el servidor con la SPA compilada y juega una partida entera entre
+dos navegadores. Necesita `pnpm db:up` y se corre con `pnpm test:e2e`, que compila primero.
+
+Usa el Chrome del sistema (`channel: 'chrome'`) porque la descarga del Chromium de Playwright
+falla en esta máquina. Para usar el suyo: `pnpm exec playwright install chromium` y quitar
+`channel` de `playwright.config.ts`.
+
+La SPA se sirve **cuando existe el build**, no según `NODE_ENV`: en producción las cookies son
+`secure` y no viajarían por el http del e2e.
+
 ## Local vs produccion
 
 |               | Local                        | Produccion (Render)                                              |
@@ -160,7 +209,7 @@ Ante una decision de producto que `PLAN.md` no cubra: **preguntar antes de imple
 - [x] Fase 1 — Autenticacion
 - [x] Fase 2 — Logica pura del juego
 - [x] Fase 3 — Salas
-- [ ] Fase 4 — Partida
-- [ ] Fase 5 — Locutor
+- [x] Fase 4 — Partida
+- [x] Fase 5 — Locutor
 - [ ] Fase 6 — Economia y tienda
 - [ ] Fase 7 — Produccion en Render + Neon

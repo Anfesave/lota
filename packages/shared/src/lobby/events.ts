@@ -1,4 +1,6 @@
-import type { JoinLobbyInput, UpdateSettingsInput } from './schemas.js';
+import type { Card } from '../game/types.js';
+import type { ClaimRejected, GameFinished, NumberCalled, WinnerView } from './game-events.js';
+import type { ClaimInput, JoinLobbyInput, MarkInput, UpdateSettingsInput } from './schemas.js';
 import type {
   ChatMessage,
   LobbyError,
@@ -26,6 +28,11 @@ export interface ClientToServerEvents {
   'lobby:updateSettings': (payload: UpdateSettingsInput, ack: Ack) => void;
   'lobby:kick': (payload: { userId: string }, ack: Ack) => void;
   'chat:send': (payload: { text: string }, ack: Ack) => void;
+
+  /** Solo el anfitrion, y solo en WAITING. */
+  'game:start': (ack: Ack) => void;
+  'game:mark': (payload: MarkInput, ack: Ack) => void;
+  'game:claim': (payload: ClaimInput, ack: Ack) => void;
 }
 
 export interface ServerToClientEvents {
@@ -38,6 +45,14 @@ export interface ServerToClientEvents {
   'lobby:kicked': (payload: { reason: string }) => void;
   'chat:message': (message: ChatMessage) => void;
   'chat:history': (payload: { messages: ChatMessage[] }) => void;
+  'game:countdown': (payload: { seconds: number }) => void;
+  'game:started': (payload: { yourCards: Card[] }) => void;
+  'game:numberCalled': (payload: NumberCalled) => void;
+  /** Solo al que canto mal. */
+  'game:claimRejected': (payload: ClaimRejected) => void;
+  'game:lineWon': (payload: { winners: WinnerView[] }) => void;
+  'game:finished': (payload: GameFinished) => void;
+
   /** Render reinicia el servicio: las salas en memoria se pierden. */
   'server:shutdown': (payload: { reason: string }) => void;
   error: (error: LobbyError) => void;
