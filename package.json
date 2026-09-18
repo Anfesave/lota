@@ -1,0 +1,34 @@
+{
+  "name": "lota",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @lota/shared build && pnpm -r --parallel dev",
+    "build": "pnpm --filter @lota/shared build && pnpm --filter @lota/server build && pnpm --filter @lota/web build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm --filter @lota/shared build && pnpm -r typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:generate": "pnpm --filter @lota/server db:generate",
+    "db:migrate": "pnpm --filter @lota/server db:migrate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.5.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2",
+    "vitest": "^3.2.4"
+  }
+}

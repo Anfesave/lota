@@ -1,0 +1,5 @@
+# Prettier usa endOfLine: "lf". Sin esto, Git convertiria a CRLF en Windows y
+# `pnpm format:check` fallaria tras un clone.
+* text=auto eol=lf
+
+pnpm-lock.yaml linguist-generated=true -diff

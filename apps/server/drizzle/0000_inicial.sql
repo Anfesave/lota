@@ -1,0 +1,1 @@
+-- Migracion inicial vacia: las tablas se agregan por fase (ver src/db/schema.ts).

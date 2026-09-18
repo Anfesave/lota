@@ -1,0 +1,27 @@
+# Blueprint de Render. Ver PLAN.md seccion 12.
+# Un unico Web Service sirve la SPA, la API REST y Socket.IO desde el mismo origen.
+services:
+  - type: web
+    name: lota
+    runtime: node
+    plan: free # cambiar a "starter" cuando haya usuarios reales
+    region: virginia # misma region que el proyecto de Neon (aws-us-east-1)
+    branch: main
+    autoDeploy: true
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    # Las migraciones van en el startCommand porque el plan Free no ofrece
+    # preDeployCommand. Son idempotentes: drizzle registra las ya aplicadas.
+    # Se usa el JS compilado para no depender de tsx en produccion.
+    startCommand: pnpm --filter @lota/server db:migrate:prod && pnpm --filter @lota/server start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL # Neon CON pooler (el host contiene "-pooler")
+        sync: false
+      - key: DATABASE_URL_DIRECT # Neon SIN pooler, solo para migraciones
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PUBLIC_URL # ej: https://lota.onrender.com (links de invitacion)
+        sync: false

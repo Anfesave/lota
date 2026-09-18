@@ -1,0 +1,24 @@
+# Postgres SOLO para desarrollo local. En produccion la base es Neon
+# (serverless, plan Free) y Render compila con su runtime Node nativo,
+# sin Docker. Ver PLAN.md seccion 12.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lota-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lota
+      POSTGRES_PASSWORD: lota
+      POSTGRES_DB: lota
+    ports:
+      - '5432:5432'
+    volumes:
+      - lota-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lota -d lota']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  lota-pgdata:
