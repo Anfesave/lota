@@ -1,5 +1,7 @@
+import { LOTERO_POR_DEFECTO } from '@lota/shared';
 import type { ReactNode } from 'react';
 import { t } from '../i18n/es-CL.js';
+import { Lotera } from './juego/Lotera.js';
 
 interface PantallaAuthProps {
   titulo: string;
@@ -12,8 +14,9 @@ interface PantallaAuthProps {
 export function PantallaAuth({ titulo, error, children, pie }: PantallaAuthProps) {
   return (
     <main className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center gap-6 px-4 py-10">
-      <header className="text-center">
-        <h1 className="text-3xl font-black tracking-tight text-lota-oro">{t.app.nombre}</h1>
+      <header className="flex flex-col items-center text-center">
+        <Lotera id={LOTERO_POR_DEFECTO} tamano="grande" />
+        <h1 className="mt-2 text-3xl font-black tracking-tight text-lota-oro">{t.app.nombre}</h1>
         <p className="mt-1 text-sm text-slate-400">{t.app.lema}</p>
       </header>
 

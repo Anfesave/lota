@@ -1,4 +1,5 @@
 import type { Card } from '../game/types.js';
+import type { LoteroId } from '../loteros.js';
 
 export type LobbyStatus = 'WAITING' | 'COUNTDOWN' | 'PLAYING' | 'FINISHED';
 export type LobbyVisibility = 'PUBLIC' | 'PRIVATE';
@@ -72,6 +73,8 @@ export interface LobbyStateView {
   pot: number;
   /** Lo que apostó el destinatario del mensaje. */
   yourBet: number;
+  /** La gata que canta esta partida; se sortea al empezar. */
+  lotero: LoteroId;
 }
 
 /** Fila del listado de salas publicas. */

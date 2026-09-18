@@ -5,6 +5,7 @@ import type {
   LobbyStatus,
   LobbyVisibility,
   ChatMessage,
+  LoteroId,
 } from '@lota/shared';
 
 /**
@@ -59,6 +60,8 @@ export interface Lobby {
   lineClosesAt?: number;
   /** Fin de la ventana de empate del carton lleno. */
   fullClosesAt?: number;
+  /** La gata que canta; se sortea en cada partida. */
+  lotero: LoteroId;
   chat: ChatMessage[];
   createdAt: number;
   /** Desde cuándo no queda nadie; sirve para borrarla a los 2 minutos. */

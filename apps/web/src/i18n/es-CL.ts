@@ -208,6 +208,8 @@ export const t = {
     activar: 'Activar locutor',
     volumen: 'Volumen',
     sinVoz: 'Tu navegador no tiene voces disponibles; los números salen igual en pantalla.',
+    retratoDe: (nombre: string) => `${nombre}, la lotera`,
+    cantaHoy: (nombre: string) => `Hoy canta ${nombre}`,
   },
 } as const;
 

@@ -1,6 +1,7 @@
-import type { NumberCalled } from '@lota/shared';
+import type { LoteroId, NumberCalled } from '@lota/shared';
 import type { ReactNode } from 'react';
 import { t } from '../../i18n/es-CL.js';
+import { Lotera } from './Lotera.js';
 
 interface BolaProps {
   ultimo: NumberCalled | null;
@@ -10,12 +11,16 @@ interface BolaProps {
   controles?: ReactNode;
   /** Dicho tradicional asociado al numero, si la sala los tiene activados. */
   dicho?: string | undefined;
+  /** La gata que canta esta partida. */
+  lotero?: LoteroId | undefined;
 }
 
 /** Bola grande con el numero actual y las ultimas que salieron. */
-export function Bola({ ultimo, anteriores, cuantosCantados, controles, dicho }: BolaProps) {
+export function Bola({ ultimo, anteriores, cuantosCantados, controles, dicho, lotero }: BolaProps) {
   return (
     <section className="flex flex-col items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+      <Lotera id={lotero} cantando={ultimo !== null} />
+
       {ultimo ? (
         <div
           // La `key` fuerza a React a recrear el nodo en cada numero, que es lo

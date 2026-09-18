@@ -193,6 +193,19 @@ verdad. El cartón **solo** muestra lo que uno marcó; el tablero de 90 lleva el
 Hay un test que compara clase y estilo de un número cantado sin marcar contra uno que no ha
 salido, para que nadie vuelva a "ayudar" resaltándolos.
 
+### Las loteras
+
+Las tres gatas que cantan viven en `packages/shared/src/loteros.ts` y sus imágenes en
+`apps/web/public/loteros/` (webp con transparencia, así calzan con el fondo oscuro).
+
+- **La Negra** es la cara de la aplicación: sale en las pantallas de entrar y registrarse, y es
+  el respaldo cuando todavía no hay partida sorteada.
+- Cada partida **sortea una** con `crypto.randomInt` en `prepareGame`, igual que el bolillero:
+  viaja en `lobby:state`, así que todos los de la sala ven exactamente la misma. El cliente no
+  elige.
+- Para añadir una cuarta basta con dejar la imagen en `public/loteros/` y sumarla a `LOTEROS`;
+  el sorteo la incluye sola.
+
 ### Aviso de que alguien está por ganar
 
 Tras cada número, el servidor mira a cuánto está cada jugador de la lota en su mejor cartón y

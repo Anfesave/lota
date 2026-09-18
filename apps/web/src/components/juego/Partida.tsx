@@ -106,6 +106,7 @@ export function Partida({ estado, misCosmeticos, controlesLocutor, dicho }: Part
           cuantosCantados={cantadosLista.length}
           controles={controlesLocutor}
           dicho={dicho}
+          lotero={estado.lotero}
         />
         <Tablero cantados={cantados} ultimo={ultimoNumero?.number} />
       </div>

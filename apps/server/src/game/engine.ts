@@ -10,6 +10,7 @@ import {
   createBag,
   findCompletedLine,
   generateUniqueCards,
+  pickLotero,
   type ClaimType,
   type PlayerCloseToWin,
   type RandomInt,
@@ -46,6 +47,8 @@ export function prepareGame(lobby: Lobby, userId: string, randomInt: RandomInt):
     delete jugador.winningCardIndex;
   }
 
+  // Cada partida estrena lotera: todas con la misma probabilidad.
+  lobby.lotero = pickLotero(randomInt);
   lobby.bag = createBag(randomInt);
   lobby.drawn = [];
   lobby.lineWinnerIds = [];

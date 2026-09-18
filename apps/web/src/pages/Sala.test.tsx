@@ -63,6 +63,7 @@ function estadoDeSala(cambios: Partial<LobbyStateView> = {}): LobbyStateView {
     winnerIds: [],
     pot: 0,
     yourBet: 0,
+    lotero: 'negra',
     ...cambios,
   };
 }

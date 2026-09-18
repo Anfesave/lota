@@ -245,3 +245,20 @@ describe('cerrar sesion', () => {
     expect(peticiones.some((p) => p.url.endsWith('/auth/logout'))).toBe(true);
   });
 });
+
+describe('la cara de la aplicacion', () => {
+  it('la Negra recibe en la pantalla de entrar', async () => {
+    simularApi(() => SIN_SESION);
+    renderizar('/entrar');
+
+    const retrato = await screen.findByAltText(t.locutor.retratoDe('La Negra'));
+    expect(retrato).toHaveAttribute('src', '/loteros/negra.webp');
+  });
+
+  it('y tambien en la de registro', async () => {
+    simularApi(() => SIN_SESION);
+    renderizar('/registro');
+
+    expect(await screen.findByAltText(t.locutor.retratoDe('La Negra'))).toBeInTheDocument();
+  });
+});

@@ -5,6 +5,7 @@ import {
   DISCONNECT_GRACE_MS,
   LOBBY_EMPTY_TTL_MS,
   BET_STEP,
+  LOTERO_POR_DEFECTO,
   MAX_PLAYERS,
   isValidBet,
   type ChatMessage,
@@ -66,6 +67,7 @@ export async function createLobby(
     bag: [],
     lineWinnerIds: [],
     winnerIds: [],
+    lotero: LOTERO_POR_DEFECTO,
     chat: [],
     createdAt: Date.now(),
   };
@@ -385,6 +387,7 @@ export function toLobbyStateView(lobby: Lobby, viewerId: string): LobbyStateView
     winnerIds: [...lobby.winnerIds],
     pot: potOfLobby(lobby),
     yourBet: yo?.bet ?? 0,
+    lotero: lobby.lotero,
   };
 }
 

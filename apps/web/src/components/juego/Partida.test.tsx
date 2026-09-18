@@ -75,6 +75,7 @@ function estadoEnJuego(cambios: Partial<LobbyStateView> = {}): LobbyStateView {
     winnerIds: [],
     pot: 0,
     yourBet: 0,
+    lotero: 'negra',
     ...cambios,
   };
 }
@@ -453,5 +454,24 @@ describe('pozo de apuestas', () => {
     expect(within(overlay).getByText(t.victoria.seLlevaElPozo('$3.000'))).toBeInTheDocument();
     expect(within(overlay).getByText(/Se cayó la lota, compadre/)).toBeInTheDocument();
     expect(within(overlay).getByText(t.victoria.monedas(60))).toBeInTheDocument();
+  });
+});
+
+describe('la lotera que canta', () => {
+  it('sale la que sorteó el servidor para esta partida', async () => {
+    await entrarEnPartida(estadoEnJuego({ lotero: 'colorina' }));
+
+    const retrato = screen.getByAltText(t.locutor.retratoDe('La Colorina'));
+    expect(retrato).toHaveAttribute('src', '/loteros/colorina.webp');
+    expect(screen.getByText('La Colorina')).toBeInTheDocument();
+  });
+
+  it('otra partida puede traer otra gata', async () => {
+    await entrarEnPartida(estadoEnJuego({ lotero: 'rayada' }));
+
+    expect(screen.getByAltText(t.locutor.retratoDe('La Rayada'))).toHaveAttribute(
+      'src',
+      '/loteros/rayada.webp',
+    );
   });
 });

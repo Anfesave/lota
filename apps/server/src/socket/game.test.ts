@@ -1,6 +1,8 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   INVALID_CLAIM_BLOCK_MS,
+  LOTERO_IDS,
+  LOTERO_POR_DEFECTO,
   MAX_NUMBER,
   NUMBERS_PER_CARD,
   cardNumbers,
@@ -461,6 +463,50 @@ describe('apuestas de la sala', () => {
     const final = await finales.esperarQue(() => true);
     expect(final.winners).toHaveLength(1);
     expect(final.winners[0]!.potWon).toBe(2500);
+  });
+});
+
+describe('la lotera que canta', () => {
+  it('cada partida sortea una y todos ven la misma', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion);
+    const invitado = await ayudantes.entrarEnSala(code);
+
+    const mios = ayudantes.recolectar<LobbyStateView>(socket, 'lobby:state');
+    const suyos = ayudantes.recolectar<LobbyStateView>(invitado.socket, 'lobby:state');
+
+    await ayudantes.emitir(socket, 'game:start');
+
+    const a = await mios.esperarQue((e) => e.status === 'PLAYING');
+    const b = await suyos.esperarQue((e) => e.status === 'PLAYING');
+
+    expect(LOTERO_IDS).toContain(a.lotero);
+    // El sorteo es del servidor: los dos ven exactamente la misma.
+    expect(a.lotero).toBe(b.lotero);
+  });
+
+  it('fuera de la partida representa la Negra', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { estado } = await ayudantes.crearSala(anfitrion);
+
+    expect(estado.lotero).toBe(LOTERO_POR_DEFECTO);
+  });
+
+  it('a lo largo de varias partidas salen las tres', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion);
+    const vistas = new Set<string>();
+
+    // Se juegan partidas cortas hasta ver a las tres, con tope por si acaso.
+    for (let intento = 0; intento < 60 && vistas.size < LOTERO_IDS.length; intento++) {
+      const lobby = sala(code);
+      lobby.status = 'WAITING';
+      await ayudantes.emitir(socket, 'game:start');
+      ayudantes.app.games.stop(lobby.id);
+      vistas.add(lobby.lotero);
+    }
+
+    expect([...vistas].sort()).toEqual([...LOTERO_IDS].sort());
   });
 });
 
