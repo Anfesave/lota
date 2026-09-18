@@ -7,8 +7,11 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import authPlugin from './auth/plugin.js';
 import { pingDb } from './db/index.js';
 import { env, isProduction, isTest } from './env.js';
+import lobbyPlugin from './lobby/plugin.js';
 import { authRoutes } from './routes/auth.js';
+import { lobbyRoutes } from './routes/lobbies.js';
 import { meRoutes } from './routes/me.js';
+import socketPlugin from './socket/index.js';
 
 /**
  * En produccion el mismo proceso sirve la SPA compilada y la API, para que todo
@@ -56,8 +59,12 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(fastifyRateLimit, { global: false, hook: 'preHandler' });
 
   await app.register(authPlugin);
+  await app.register(lobbyPlugin);
+  await app.register(socketPlugin);
+
   await app.register(authRoutes, { prefix: '/api' });
   await app.register(meRoutes, { prefix: '/api' });
+  await app.register(lobbyRoutes, { prefix: '/api' });
 
   await registerSpa(app);
 

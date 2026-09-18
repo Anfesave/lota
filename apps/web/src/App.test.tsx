@@ -5,7 +5,16 @@ import { MemoryRouter } from 'react-router-dom';
 import type { CurrentUser } from '@lota/shared';
 import { App } from './App.js';
 import { t } from './i18n/es-CL.js';
+import { resetSocket } from './lib/socket.js';
 import { useAuthStore } from './stores/auth.js';
+import { resetLobbyListeners, useLobbyStore } from './stores/lobby.js';
+import { socketFalso } from './test/socketFalso.js';
+
+// El layout abre un socket en cuanto hay sesión; aquí no queremos red.
+vi.mock('socket.io-client', async () => {
+  const { socketFalso: falso } = await import('./test/socketFalso.js');
+  return { io: () => falso };
+});
 
 const USUARIO: CurrentUser = {
   id: '11111111-1111-1111-1111-111111111111',
@@ -41,7 +50,11 @@ function simularApi(manejador: (peticion: Peticion) => Respuesta) {
       };
       peticiones.push(peticion);
 
-      const { status, body } = manejador(peticion);
+      // El listado de salas lo pide el lobby en cuanto hay sesión. No es lo
+      // que prueban estos tests, así que siempre responde vacío.
+      const { status, body } = peticion.url.endsWith('/lobbies')
+        ? { status: 200, body: { lobbies: [] } }
+        : manejador(peticion);
       return Promise.resolve(
         new Response(JSON.stringify(body), {
           status,
@@ -67,7 +80,11 @@ function renderizar(ruta = '/') {
 
 beforeEach(() => {
   peticiones.length = 0;
-  useAuthStore.setState({ user: null, estado: 'cargando' });
+  socketFalso.limpiar();
+  resetSocket();
+  resetLobbyListeners();
+  useAuthStore.setState({ user: null, estado: 'cargando', errorSesion: null });
+  useLobbyStore.setState({ estado: null, mensajes: [], aviso: null, conectado: false });
 });
 
 afterEach(() => {
@@ -83,13 +100,32 @@ describe('rutas protegidas', () => {
     expect(await screen.findByRole('heading', { name: t.auth.entrarTitulo })).toBeInTheDocument();
   });
 
-  it('muestra el inicio cuando hay sesion', async () => {
+  it('muestra el lobby cuando hay sesion', async () => {
     simularApi(() => ({ status: 200, body: USUARIO }));
     renderizar('/');
 
     expect(await screen.findByText(t.inicio.saludo(USUARIO.username))).toBeInTheDocument();
     expect(screen.getByText(String(USUARIO.coins))).toBeInTheDocument();
-    expect(screen.getByText(USUARIO.victoryMessage)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: t.lobby.titulo })).toBeInTheDocument();
+  });
+
+  it('si el servidor falla ofrece reintentar en vez de mandar a login', async () => {
+    // Con el plan Free de Render el servicio puede estar despertando: tratarlo
+    // como "no has entrado" seria mentirle al usuario.
+    let intentos = 0;
+    simularApi(() => {
+      intentos += 1;
+      return intentos === 1
+        ? { status: 500, body: { message: 'Algo salió mal.' } }
+        : { status: 200, body: USUARIO };
+    });
+    renderizar('/');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.comun.servidorDespertando);
+    expect(screen.queryByRole('heading', { name: t.auth.entrarTitulo })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: t.comun.reintentar }));
+    expect(await screen.findByText(t.inicio.saludo(USUARIO.username))).toBeInTheDocument();
   });
 
   it('recuerda la ruta pedida para volver a ella tras entrar', async () => {

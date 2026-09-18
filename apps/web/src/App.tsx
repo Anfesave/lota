@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { Layout } from './components/Layout.js';
 import { RutaProtegida } from './components/RutaProtegida.js';
-import { Inicio } from './pages/Inicio.js';
+import { Lobby } from './pages/Lobby.js';
 import { Login } from './pages/Login.js';
 import { Registro } from './pages/Registro.js';
+import { Sala } from './pages/Sala.js';
 import { useAuthStore } from './stores/auth.js';
 
 export function App() {
@@ -21,13 +23,16 @@ export function App() {
   return (
     <Routes>
       <Route
-        path="/"
         element={
           <RutaProtegida>
-            <Inicio />
+            <Layout />
           </RutaProtegida>
         }
-      />
+      >
+        <Route path="/" element={<Lobby />} />
+        <Route path="/sala/:code" element={<Sala />} />
+      </Route>
+
       {/* Si ya hay sesion, entrar y registro no tienen sentido. */}
       <Route path="/entrar" element={yaEntro ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/registro" element={yaEntro ? <Navigate to="/" replace /> : <Registro />} />

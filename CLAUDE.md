@@ -88,6 +88,29 @@ Un carton se construye en tres pasos: cuantos numeros lleva cada columna (1 a 3,
 que filas ocupa cada columna (vuelta atras, para que cada fila quede con 5 exactos) y que
 numeros concretos van, ordenados de menor a mayor hacia abajo.
 
+## Salas y tiempo real (Fase 3)
+
+Las salas viven **en memoria** detrás de la interfaz `LobbyStore`
+(`apps/server/src/lobby/store.ts`), no en la base de datos. Se registran como decorador de
+Fastify (`app.lobbies`) en vez de un singleton de módulo, para que cada app de test tenga la
+suya. Cambiar a Redis para varias instancias sería reimplementar esa interfaz.
+
+- **Socket.IO se autentica en el handshake** con la misma cookie firmada que la API: sin sesión
+  válida no se acepta la conexión. No hay un segundo mecanismo de sesión.
+- **Todos los payloads se revalidan con Zod en el servidor**, aunque los tipos de
+  `ClientToServerEvents` los describan: eso es ayuda para escribir el cliente, no una garantía.
+- **Cada evento contesta con acuse de recibo** (`AckResponse`), así el cliente siempre sabe si su
+  acción salió o falló, sin adivinar por el estado que llega después.
+- `lobby:state` se manda **socket a socket**, no a la sala entera, porque `yourCards` es distinto
+  para cada jugador. La `bag` y los cartones ajenos nunca salen del servidor.
+- El mantenimiento (desconectados que pasaron el margen, cambio de anfitrión, salas vacías) es un
+  **barrido periódico** en la capa de sockets, no un temporizador por sala: con miles de salas
+  serían miles de timers. `barrer()` acepta un reloj para que los tests no esperen de verdad.
+- Desconectarse **no** saca del acto: se conserva el sitio 30 s en WAITING y toda la partida en
+  PLAYING. Salir con `lobby:leave` sí saca en el momento.
+- Cambiar la configuración reinicia los "listo": nadie acepta reglas a ciegas.
+- Chat limitado a 1 mensaje por segundo y por socket; solo se guardan los 50 últimos.
+
 ## Local vs produccion
 
 |               | Local                        | Produccion (Render)                                              |
@@ -136,7 +159,7 @@ Ante una decision de producto que `PLAN.md` no cubra: **preguntar antes de imple
 - [x] Fase 0 — Andamiaje
 - [x] Fase 1 — Autenticacion
 - [x] Fase 2 — Logica pura del juego
-- [ ] Fase 3 — Salas
+- [x] Fase 3 — Salas
 - [ ] Fase 4 — Partida
 - [ ] Fase 5 — Locutor
 - [ ] Fase 6 — Economia y tienda

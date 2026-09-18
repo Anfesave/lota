@@ -36,3 +36,29 @@ export const USERNAME_MIN_LENGTH = 3;
 export const USERNAME_MAX_LENGTH = 20;
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 72;
+
+/** Nombre de una sala. */
+export const LOBBY_NAME_MIN_LENGTH = 3;
+export const LOBBY_NAME_MAX_LENGTH = 40;
+
+/** Contrasena de una sala privada: se comparte por chat, no hace falta que sea larga. */
+export const LOBBY_PASSWORD_MIN_LENGTH = 4;
+export const LOBBY_PASSWORD_MAX_LENGTH = 72;
+
+/** Una sala sin nadie dentro se elimina tras 2 minutos. */
+export const LOBBY_EMPTY_TTL_MS = 2 * 60 * 1000;
+
+/**
+ * Margen que se le da a un jugador desconectado en WAITING antes de sacarlo.
+ * Si era el anfitrion, el rol pasa al jugador mas antiguo que quede.
+ */
+export const DISCONNECT_GRACE_MS = 30 * 1000;
+
+/** Cada cuanto se revisan las salas para limpiar desconectados y vacias. */
+export const LOBBY_SWEEP_INTERVAL_MS = 5 * 1000;
+
+/** Chat: como mucho un mensaje por segundo y por jugador. */
+export const CHAT_RATE_LIMIT_MS = 1000;
+
+/** Cuantos mensajes de chat recientes guarda una sala. */
+export const CHAT_HISTORY_SIZE = 50;
