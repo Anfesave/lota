@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { MAX_PLAYERS, type CurrentUser, type LobbyStateView } from '@lota/shared';
@@ -64,6 +64,9 @@ function estadoDeSala(cambios: Partial<LobbyStateView> = {}): LobbyStateView {
     pot: 0,
     yourBet: 0,
     lotero: 'negra',
+    tally: [],
+    partidasJugadas: 0,
+    pozoAcumulado: 0,
     ...cambios,
   };
 }
@@ -323,5 +326,118 @@ describe('apuestas en la sala', () => {
 
     expect(screen.getByText('$2.000')).toBeInTheDocument();
     expect(screen.getByText(t.sala.apuestaDe('$500'))).toBeInTheDocument();
+  });
+});
+
+describe('cuentas de la sala', () => {
+  const CUENTAS = [
+    {
+      userId: OTRO.userId,
+      username: OTRO.username,
+      partidas: 3,
+      ganadas: 2,
+      apostado: 3000,
+      ganado: 5000,
+      balance: 2000,
+    },
+    {
+      userId: YO.id,
+      username: YO.username,
+      partidas: 3,
+      ganadas: 1,
+      apostado: 3000,
+      ganado: 1000,
+      balance: -2000,
+    },
+  ];
+
+  it('no aparecen antes de la primera partida', async () => {
+    simularApi();
+    socketFalso.respuestas.set('lobby:join', { ok: true, data: estadoDeSala() });
+    renderizar('/sala/K7P2QX');
+    await screen.findByRole('heading', { name: 'Fonda dieciochera' });
+
+    expect(screen.queryByText(t.cuentas.titulo)).not.toBeInTheDocument();
+  });
+
+  it('muestran quien gana y quien va perdiendo', async () => {
+    const estado = estadoDeSala({ tally: CUENTAS, partidasJugadas: 3, pozoAcumulado: 6000 });
+    estado.settings.apuestas = true;
+
+    simularApi();
+    socketFalso.respuestas.set('lobby:join', { ok: true, data: estado });
+    renderizar('/sala/K7P2QX');
+    await screen.findByRole('heading', { name: estado.name });
+
+    expect(screen.getByText(t.cuentas.titulo)).toBeInTheDocument();
+    expect(screen.getByText(t.cuentas.resumen(3, '$6.000'))).toBeInTheDocument();
+
+    const tabla = screen.getByRole('table');
+    expect(within(tabla).getByText('+$2.000')).toBeInTheDocument();
+    expect(within(tabla).getByText('-$2.000')).toBeInTheDocument();
+    expect(within(tabla).getByText('2/3')).toBeInTheDocument();
+  });
+
+  it('se actualizan cuando llega el estado tras una partida', async () => {
+    const estado = estadoDeSala({ tally: CUENTAS, partidasJugadas: 3, pozoAcumulado: 6000 });
+    estado.settings.apuestas = true;
+
+    simularApi();
+    socketFalso.respuestas.set('lobby:join', { ok: true, data: estado });
+    renderizar('/sala/K7P2QX');
+    await screen.findByText(t.cuentas.resumen(3, '$6.000'));
+
+    const despues = estadoDeSala({
+      tally: [
+        { ...CUENTAS[0]!, partidas: 4, ganadas: 3, ganado: 8000, balance: 4500 },
+        CUENTAS[1]!,
+      ],
+      partidasJugadas: 4,
+      pozoAcumulado: 9000,
+    });
+    despues.settings.apuestas = true;
+    socketFalso.servidorEmite('lobby:state', despues);
+
+    expect(await screen.findByText(t.cuentas.resumen(4, '$9.000'))).toBeInTheDocument();
+    expect(screen.getByText('+$4.500')).toBeInTheDocument();
+  });
+});
+
+describe('volver de segundo plano', () => {
+  it('al reconectar vuelve a entrar a la sala sin molestar al jugador', async () => {
+    // En el telefono, cambiar de aplicacion suspende la pagina y cae el
+    // socket. El servidor guarda el sitio un minuto; el cliente tiene que
+    // volver a entrar solo, o la pantalla se queda muda.
+    simularApi();
+    socketFalso.respuestas.set('lobby:join', { ok: true, data: estadoDeSala() });
+    renderizar('/sala/K7P2QX');
+    await screen.findByRole('heading', { name: 'Fonda dieciochera' });
+
+    const entradasAntes = socketFalso.emitidos.filter((e) => e.evento === 'lobby:join').length;
+
+    socketFalso.servidorEmite('connect');
+
+    await waitFor(() => {
+      const ahora = socketFalso.emitidos.filter((e) => e.evento === 'lobby:join');
+      expect(ahora.length).toBe(entradasAntes + 1);
+      expect(ahora.at(-1)?.payload).toEqual({ code: 'K7P2QX' });
+    });
+  });
+
+  it('tras salir a propósito no se vuelve a entrar solo', async () => {
+    simularApi();
+    socketFalso.respuestas.set('lobby:join', { ok: true, data: estadoDeSala() });
+    renderizar('/sala/K7P2QX');
+    await screen.findByRole('heading', { name: 'Fonda dieciochera' });
+
+    await userEvent.click(screen.getByRole('button', { name: t.sala.salir }));
+    const entradasAntes = socketFalso.emitidos.filter((e) => e.evento === 'lobby:join').length;
+
+    socketFalso.servidorEmite('connect');
+
+    await new Promise((resolver) => setTimeout(resolver, 50));
+    expect(socketFalso.emitidos.filter((e) => e.evento === 'lobby:join')).toHaveLength(
+      entradasAntes,
+    );
   });
 });

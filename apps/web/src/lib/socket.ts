@@ -16,10 +16,12 @@ export function getSocket(): LotaSocket {
     withCredentials: true,
     autoConnect: false,
     // Render apaga el servicio tras 15 min sin tráfico; al volver hay que
-    // reintentar con paciencia en vez de rendirse al primer fallo.
-    reconnectionAttempts: 10,
-    reconnectionDelay: 1_000,
-    reconnectionDelayMax: 8_000,
+    // reintentar con paciencia en vez de rendirse al primer fallo. En el
+    // teléfono, además, basta con cambiar de aplicación para que el navegador
+    // suspenda la página: hay que reintentar sin rendirse nunca.
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 700,
+    reconnectionDelayMax: 5_000,
   });
   return socket;
 }
@@ -37,6 +39,21 @@ export function conectarSocket(): LotaSocket {
   const actual = getSocket();
   if (!actual.active && !actual.connected) actual.connect();
   return actual;
+}
+
+/**
+ * Insiste en conectar tras volver de segundo plano.
+ *
+ * Al minimizar el navegador el teléfono congela los temporizadores, así que
+ * los reintentos de socket.io se quedan dormidos. Cuando la pestaña vuelve a
+ * verse hay que empujarlos.
+ */
+export function asegurarConexion(): void {
+  const actual = getSocket();
+  if (actual.connected) return;
+
+  // `active` es false cuando ya se rindió: ahí sí hay que llamar a connect().
+  if (!actual.active) actual.connect();
 }
 
 export function resetSocket(): void {

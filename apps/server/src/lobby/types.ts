@@ -29,6 +29,8 @@ export interface LobbyPlayer {
   /** Con que carton gano, para mostrarlo en la pantalla de victoria. */
   winningCardIndex?: number;
   equipped: EquippedCosmetics;
+  /** Cuentas acumuladas en esta sala, a lo largo de las partidas. */
+  tally: { partidas: number; ganadas: number; apostado: number; ganado: number };
   /** Para elegir al anfitrión más antiguo cuando el actual se cae. */
   joinedAt: number;
   /** Momento de la desconexión, para el margen de gracia. */
@@ -62,6 +64,10 @@ export interface Lobby {
   fullClosesAt?: number;
   /** La gata que canta; se sortea en cada partida. */
   lotero: LoteroId;
+  /** Partidas terminadas en esta sala. */
+  partidasJugadas: number;
+  /** Total que ha pasado por los pozos de esta sala. */
+  pozoAcumulado: number;
   chat: ChatMessage[];
   createdAt: number;
   /** Desde cuándo no queda nadie; sirve para borrarla a los 2 minutos. */

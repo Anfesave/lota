@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Outlet } from 'react-router-dom';
 import { t } from '../i18n/es-CL.js';
+import { asegurarConexion } from '../lib/socket.js';
 import { useAuthStore } from '../stores/auth.js';
 import { useLobbyStore } from '../stores/lobby.js';
 
@@ -17,6 +18,31 @@ export function Layout() {
   useEffect(() => {
     if (user) escuchar();
   }, [user, escuchar]);
+
+  /**
+   * Al cambiar de aplicación en el teléfono, el navegador suspende la página y
+   * se cae el socket. Cuando vuelve a verse hay que empujar la reconexión: los
+   * reintentos de socket.io estaban congelados con ella. El servidor guarda el
+   * sitio un minuto, así que el jugador vuelve a su sala sin enterarse.
+   */
+  useEffect(() => {
+    if (!user) return;
+
+    const alVolver = () => {
+      if (document.visibilityState === 'visible') asegurarConexion();
+    };
+
+    document.addEventListener('visibilitychange', alVolver);
+    window.addEventListener('focus', alVolver);
+    // `pageshow` cubre volver atrás desde la caché del navegador móvil.
+    window.addEventListener('pageshow', alVolver);
+
+    return () => {
+      document.removeEventListener('visibilitychange', alVolver);
+      window.removeEventListener('focus', alVolver);
+      window.removeEventListener('pageshow', alVolver);
+    };
+  }, [user]);
 
   const avisoDeNavegacion = (location.state as { aviso?: string } | null)?.aviso ?? null;
   const [aviso, setAviso] = useState<string | null>(avisoDeNavegacion);

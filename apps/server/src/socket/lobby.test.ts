@@ -382,6 +382,55 @@ describe('anfitrión desconectado', () => {
   });
 });
 
+describe('reconexión desde el teléfono', () => {
+  it('volver a entrar tras caerse recupera el sitio sin perder la sala', async () => {
+    // Cambiar de aplicación en el móvil suspende la página y cae el socket.
+    // El servidor guarda el sitio el margen de gracia entero.
+    const anfitrion = await crearUsuario();
+    const segundo = await crearUsuario();
+    const { code, socket } = await crearSala(anfitrion);
+
+    const socketSegundo = await conectar(segundo.cookie);
+    await emitir(socketSegundo, 'lobby:join', { code });
+    await emitir(socketSegundo, 'lobby:ready', { ready: true });
+
+    const estados = recolectar<LobbyStateView>(socket, 'lobby:state');
+    socketSegundo.disconnect();
+    await estados.esperarQue((e) =>
+      e.players.some((p) => p.userId === segundo.userId && !p.connected),
+    );
+
+    // Vuelve antes de que se acabe el margen: sigue dentro y sigue listo.
+    const otro = await conectar(segundo.cookie);
+    const vuelta = await emitir<LobbyStateView>(otro, 'lobby:join', { code });
+
+    expect(vuelta.ok).toBe(true);
+    if (!vuelta.ok) return;
+
+    const yo = vuelta.data.players.find((p) => p.userId === segundo.userId);
+    expect(yo).toMatchObject({ connected: true, ready: true });
+    expect(vuelta.data.players).toHaveLength(2);
+  });
+
+  it('una sala privada no vuelve a pedir la contraseña al reconectar', async () => {
+    const anfitrion = await crearUsuario();
+    const invitado = await crearUsuario();
+    const { code } = await crearSala(anfitrion, {
+      visibility: 'PRIVATE',
+      password: 'porotos',
+    });
+
+    const socket = await conectar(invitado.cookie);
+    await emitir(socket, 'lobby:join', { code, password: 'porotos' });
+    socket.disconnect();
+
+    const otro = await conectar(invitado.cookie);
+    const vuelta = await emitir(otro, 'lobby:join', { code });
+
+    expect(vuelta.ok).toBe(true);
+  });
+});
+
 describe('estado de la sala', () => {
   it('listo y no listo se propagan a todos', async () => {
     const anfitrion = await crearUsuario();

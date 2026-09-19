@@ -13,7 +13,8 @@ export const DICHOS: Record<number, string[]> = {
   2: ['El patito'],
   5: ['La manito'],
   7: ['La suerte'],
-  11: ['Los palitos', 'Las banderitas'],
+  // Pedido expresamente: el 11 siempre sale con esta.
+  11: ['Chúpalo entonces'],
   13: ['La mala suerte'],
   15: ['La niña bonita'],
   22: ['Los patitos'],

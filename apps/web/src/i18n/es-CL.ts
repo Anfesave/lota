@@ -159,6 +159,18 @@ export const t = {
     volverALaSala: 'Volver a la sala',
     salir: 'Salir',
   },
+  cuentas: {
+    titulo: 'Cuentas de la sala',
+    sinPartidas: 'Todavía no se juega ninguna partida en esta sala.',
+    resumen: (partidas: number, pozo: string) =>
+      partidas === 1 ? `1 partida · ${pozo} en juego` : `${partidas} partidas · ${pozo} en juego`,
+    jugador: 'Jugador',
+    ganadas: 'Ganadas',
+    puesto: 'Puso',
+    llevado: 'Se llevó',
+    balance: 'Balance',
+    recordatorio: 'La app solo lleva la cuenta: la plata la arreglan ustedes.',
+  },
   perfil: {
     titulo: 'Perfil',
     enlace: 'Perfil',

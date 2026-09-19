@@ -27,12 +27,47 @@ export const announcerMudo: Announcer = {
   configurar: () => undefined,
 };
 
-/** Preferencia de voz: chilena, luego latinoamericana, luego cualquier español. */
-function elegirVoz(voces: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
-  const porPrefijo = (prefijo: string) =>
-    voces.find((voz) => voz.lang.toLowerCase().replace('_', '-').startsWith(prefijo));
+/**
+ * Orden de preferencia de voz: chilena primero, luego el resto de
+ * Latinoamérica, y España solo como último recurso. El acento peninsular se
+ * nota mucho cantando números, así que se deja para cuando no hay otra.
+ *
+ * Qué voces existen depende del sistema operativo: el navegador solo ofrece
+ * las instaladas. Si en el equipo solo hay `es-ES`, esa saldrá.
+ */
+const PREFERENCIA_DE_VOZ = [
+  'es-cl', // Chile
+  'es-419', // Latinoamérica genérico
+  'es-mx', // México
+  'es-ar', // Argentina
+  'es-co', // Colombia
+  'es-pe', // Perú
+  'es-us', // Español de Estados Unidos, también neutro
+  'es-uy',
+  'es-ve',
+  'es-bo',
+  'es-py',
+  'es-ec',
+  'es-cr',
+];
 
-  return porPrefijo('es-cl') ?? porPrefijo('es-419') ?? porPrefijo('es');
+function normalizar(lang: string): string {
+  return lang.toLowerCase().replace('_', '-');
+}
+
+export function elegirVoz(voces: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
+  for (const prefijo of PREFERENCIA_DE_VOZ) {
+    const encontrada = voces.find((voz) => normalizar(voz.lang).startsWith(prefijo));
+    if (encontrada) return encontrada;
+  }
+
+  // Cualquier español que no sea de España.
+  const latina = voces.find(
+    (voz) => normalizar(voz.lang).startsWith('es') && !normalizar(voz.lang).startsWith('es-es'),
+  );
+  if (latina) return latina;
+
+  return voces.find((voz) => normalizar(voz.lang).startsWith('es'));
 }
 
 class WebSpeechAnnouncer implements Announcer {

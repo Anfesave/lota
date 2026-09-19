@@ -11,6 +11,7 @@ import { desc, eq } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { gamePlayers, games } from '../db/schema.js';
 import { toWinnerViews } from '../game/engine.js';
+import { recordLobbyTally } from '../lobby/service.js';
 import type { Lobby } from '../lobby/types.js';
 import { capDailyWinnings, grantCoins } from './coins.js';
 
@@ -72,6 +73,10 @@ export async function settleGame(
     ganador.coinsWon = monedasPorJugador.get(ganador.userId) ?? 0;
     ganador.potWon = pozoPorGanador;
   }
+
+  // La cuenta de la sala se apunta aunque falle la base: es el papelito de la
+  // mesa y tiene que cuadrar con lo que acaban de ver en pantalla.
+  if (reason !== 'CANCELADA') recordLobbyTally(lobby, pozoPorGanador);
 
   try {
     await persistir(lobby, reason, pozo, monedasPorJugador, pozoPorGanador);

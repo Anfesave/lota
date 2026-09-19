@@ -75,6 +75,31 @@ export interface LobbyStateView {
   yourBet: number;
   /** La gata que canta esta partida; se sortea al empezar. */
   lotero: LoteroId;
+  /** Cuentas de la sala a lo largo de las partidas, de mejor a peor balance. */
+  tally: LobbyTallyRow[];
+  /** Cuantas partidas se han terminado en esta sala. */
+  partidasJugadas: number;
+  /** Total que ha pasado por los pozos de esta sala. */
+  pozoAcumulado: number;
+}
+
+/**
+ * Cuenta acumulada de un jugador a lo largo de las partidas de esta sala.
+ * Como todo lo de apuestas, es un registro: la aplicacion no mueve dinero.
+ */
+export interface LobbyTallyRow {
+  userId: string;
+  username: string;
+  /** Partidas que jugo en esta sala. */
+  partidas: number;
+  /** Cuantas gano (carton lleno). */
+  ganadas: number;
+  /** Total que puso al pozo. */
+  apostado: number;
+  /** Total que se llevo de los pozos. */
+  ganado: number;
+  /** Lo ganado menos lo apostado; negativo si va perdiendo. */
+  balance: number;
 }
 
 /** Fila del listado de salas publicas. */

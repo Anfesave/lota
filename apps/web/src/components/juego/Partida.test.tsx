@@ -76,6 +76,9 @@ function estadoEnJuego(cambios: Partial<LobbyStateView> = {}): LobbyStateView {
     pot: 0,
     yourBet: 0,
     lotero: 'negra',
+    tally: [],
+    partidasJugadas: 0,
+    pozoAcumulado: 0,
     ...cambios,
   };
 }

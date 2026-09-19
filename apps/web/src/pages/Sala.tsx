@@ -14,6 +14,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Campo } from '../components/Campo.js';
 import { Chat } from '../components/Chat.js';
+import { Cuentas } from '../components/juego/Cuentas.js';
 import { Partida } from '../components/juego/Partida.js';
 import { Victoria } from '../components/juego/Victoria.js';
 import { ControlesLocutor, useLocutor } from '../components/juego/Locutor.js';
@@ -161,6 +162,9 @@ export function Sala() {
           ) : (
             <>
               <ListaJugadores estado={estado} soyAnfitrion={soyAnfitrion} miId={user.id} />
+              {estado.settings.apuestas || estado.partidasJugadas > 0 ? (
+                <Cuentas estado={estado} />
+              ) : null}
               <Configuracion estado={estado} soyAnfitrion={soyAnfitrion} />
             </>
           )}

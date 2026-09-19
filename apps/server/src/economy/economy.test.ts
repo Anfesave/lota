@@ -4,6 +4,7 @@ import {
   COINS_DAILY_BONUS,
   DAILY_COINS_CAP,
   coinsForFullCard,
+  formatPesos,
   isValidBet,
   splitPrize,
 } from '@lota/shared';
@@ -83,6 +84,13 @@ describe('cuentas de monedas', () => {
     expect(coinsForFullCard(1)).toBe(50);
     expect(coinsForFullCard(2)).toBe(60);
     expect(coinsForFullCard(10)).toBe(140);
+  });
+
+  it('formatea los pesos con el signo delante', () => {
+    expect(formatPesos(0)).toBe('$0');
+    expect(formatPesos(1500)).toBe('$1.500');
+    // Un balance negativo se lee "-$2.000", no "$-2.000".
+    expect(formatPesos(-2000)).toBe('-$2.000');
   });
 
   it('solo acepta apuestas múltiplo de 500', () => {

@@ -542,3 +542,140 @@ describe('aviso de que alguien está por ganar', () => {
     expect(avisos.recibidos[0]!.username).toBe(anfitrion.username);
   });
 });
+
+describe('cuentas de la sala a lo largo de las partidas', () => {
+  /** Juega una partida completa haciendo ganar al socket que se le pase. */
+  async function jugarYGanar(code: string, socket: Parameters<typeof ayudantes.emitir>[0]) {
+    const comienzos = ayudantes.recolectar<{ yourCards: number[][][] }>(socket, 'game:started');
+    const finales = ayudantes.recolectar<GameFinished>(socket, 'game:finished');
+
+    await ayudantes.emitir(socket, 'game:start');
+    const { yourCards } = await comienzos.esperarQue(() => true);
+
+    cantarExactamente(code, cardNumbers(yourCards[0]!));
+    await ayudantes.emitir(socket, 'game:claim', { type: 'FULL', cardIndex: 0 });
+
+    await finales.esperarQue(() => true);
+  }
+
+  it('acumula apuestas, victorias y balance de cada uno', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion, {
+      settings: { apuestas: true },
+    });
+    const invitado = await ayudantes.entrarEnSala(code);
+
+    await ayudantes.emitir(socket, 'lobby:setBet', { amount: 1000 });
+    await ayudantes.emitir(invitado.socket, 'lobby:setBet', { amount: 500 });
+
+    const estados = ayudantes.recolectar<LobbyStateView>(socket, 'lobby:state');
+    await jugarYGanar(code, socket);
+
+    const estado = await estados.esperarQue((e) => e.partidasJugadas === 1);
+
+    expect(estado.pozoAcumulado).toBe(1500);
+    const anfitrionEnCuenta = estado.tally.find((f) => f.userId === anfitrion.userId)!;
+    const invitadoEnCuenta = estado.tally.find((f) => f.userId === invitado.sesion.userId)!;
+
+    expect(anfitrionEnCuenta).toMatchObject({
+      partidas: 1,
+      ganadas: 1,
+      apostado: 1000,
+      ganado: 1500,
+      balance: 500,
+    });
+    expect(invitadoEnCuenta).toMatchObject({
+      partidas: 1,
+      ganadas: 0,
+      apostado: 500,
+      ganado: 0,
+      balance: -500,
+    });
+  });
+
+  it('suma partida tras partida', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion, {
+      settings: { apuestas: true },
+    });
+    const invitado = await ayudantes.entrarEnSala(code);
+
+    await ayudantes.emitir(socket, 'lobby:setBet', { amount: 500 });
+    await ayudantes.emitir(invitado.socket, 'lobby:setBet', { amount: 500 });
+
+    const estados = ayudantes.recolectar<LobbyStateView>(socket, 'lobby:state');
+    await jugarYGanar(code, socket);
+    await jugarYGanar(code, socket);
+
+    const estado = await estados.esperarQue((e) => e.partidasJugadas === 2);
+
+    expect(estado.pozoAcumulado).toBe(2000);
+    expect(estado.tally.find((f) => f.userId === anfitrion.userId)).toMatchObject({
+      partidas: 2,
+      ganadas: 2,
+      apostado: 1000,
+      ganado: 2000,
+      balance: 1000,
+    });
+  });
+
+  it('las cuentas van del que mejor va al que peor', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion, {
+      settings: { apuestas: true },
+    });
+    const invitado = await ayudantes.entrarEnSala(code);
+
+    await ayudantes.emitir(socket, 'lobby:setBet', { amount: 500 });
+    await ayudantes.emitir(invitado.socket, 'lobby:setBet', { amount: 1500 });
+
+    const estados = ayudantes.recolectar<LobbyStateView>(socket, 'lobby:state');
+    await jugarYGanar(code, socket);
+
+    const estado = await estados.esperarQue((e) => e.partidasJugadas === 1);
+    expect(estado.tally[0]!.userId).toBe(anfitrion.userId);
+    expect(estado.tally[0]!.balance).toBeGreaterThan(estado.tally[1]!.balance);
+  });
+});
+
+describe('marcado automático', () => {
+  it('el servidor marca solo los números del cartón al cantarlos', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion, {
+      settings: { autoMark: true },
+    });
+
+    const comienzos = ayudantes.recolectar<{ yourCards: number[][][] }>(socket, 'game:started');
+    await ayudantes.emitir(socket, 'game:start');
+    const { yourCards } = await comienzos.esperarQue(() => true);
+
+    const numeros = cardNumbers(yourCards[0]!);
+    const lobby = sala(code);
+    ayudantes.app.games.stop(lobby.id);
+
+    // Se cantan los tres primeros numeros del carton.
+    lobby.bag = [...numeros.slice(0, 3)].reverse();
+    forzarCanto(code);
+    forzarCanto(code);
+    forzarCanto(code);
+
+    const marcadas = lobby.players.get(anfitrion.userId)!.marks;
+    expect([...marcadas].sort((a, b) => a - b)).toEqual(numeros.slice(0, 3));
+  });
+
+  it('sin marcado automático el servidor no marca nada solo', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion);
+
+    const comienzos = ayudantes.recolectar<{ yourCards: number[][][] }>(socket, 'game:started');
+    await ayudantes.emitir(socket, 'game:start');
+    const { yourCards } = await comienzos.esperarQue(() => true);
+
+    const lobby = sala(code);
+    ayudantes.app.games.stop(lobby.id);
+    lobby.bag = [cardNumbers(yourCards[0]!)[0]!];
+    forzarCanto(code);
+
+    expect(lobby.players.get(anfitrion.userId)!.marks.size).toBe(0);
+  });
+});

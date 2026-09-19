@@ -106,8 +106,13 @@ suya. Cambiar a Redis para varias instancias sería reimplementar esa interfaz.
 - El mantenimiento (desconectados que pasaron el margen, cambio de anfitrión, salas vacías) es un
   **barrido periódico** en la capa de sockets, no un temporizador por sala: con miles de salas
   serían miles de timers. `barrer()` acepta un reloj para que los tests no esperen de verdad.
-- Desconectarse **no** saca del acto: se conserva el sitio 30 s en WAITING y toda la partida en
-  PLAYING. Salir con `lobby:leave` sí saca en el momento.
+- Desconectarse **no** saca del acto: se conserva el sitio **60 s** en WAITING y toda la partida
+  en PLAYING. Salir con `lobby:leave` sí saca en el momento.
+- **Reconexión desde el teléfono**: cambiar de aplicación suspende la página y cae el socket. El
+  cliente vuelve a entrar solo (`salaActual` en el store, reintento en el evento `connect`) y
+  empuja la reconexión al volver a primer plano (`visibilitychange`, `focus`, `pageshow`), porque
+  los reintentos de socket.io se congelan con la pestaña. Sin esas dos piezas la pantalla se
+  quedaba muda aunque el jugador siguiera dentro de la sala.
 - Cambiar la configuración reinicia los "listo": nadie acepta reglas a ciegas.
 - Chat limitado a 1 mensaje por segundo y por socket; solo se guardan los 50 últimos.
 
@@ -175,6 +180,13 @@ sin tener que pedirlos.
   no cuenta para ese tope.
 - Los cosméticos gratis cuentan como propios desde el principio: son el punto de partida.
 
+### Cuentas de la sala
+
+Además del pozo de la partida en curso, cada sala lleva un **papelito de la mesa**: cuántas
+partidas jugó cada uno, cuántas ganó, cuánto puso y cuánto se llevó. Se actualiza al cerrar cada
+partida (`recordLobbyTally`) y viaja en `lobby:state`. Vive con la sala, en memoria: si la sala se
+cierra, se cierra la cuenta. El historial que sí persiste es el del perfil.
+
 ### Apuestas
 
 **Son un registro entre amigos, no dinero de verdad.** La aplicación anota cuánto puso cada
@@ -198,6 +210,11 @@ salido, para que nadie vuelva a "ayudar" resaltándolos.
 Las tres gatas que cantan viven en `packages/shared/src/loteros.ts` y sus imágenes en
 `apps/web/public/loteros/` (webp con transparencia, así calzan con el fondo oscuro).
 
+- Voz: se prefiere `es-CL`, luego el resto de Latinoamérica, y España **solo como último
+  recurso**. Ahora bien, el navegador solo ofrece las voces instaladas en el sistema: si el equipo
+  únicamente tiene `es-ES`, esa sonará. Los teléfonos suelen traer `es-MX`/`es-US`.
+- El 11 siempre canta "Chúpalo entonces": es su único dicho, así que no hay sorteo. Requiere el
+  interruptor `dichos` de la sala, que viene activado por defecto.
 - **La Negra** es la cara de la aplicación: sale en las pantallas de entrar y registrarse, y es
   el respaldo cuando todavía no hay partida sorteada.
 - Cada partida **sortea una** con `crypto.randomInt` en `prepareGame`, igual que el bolillero:

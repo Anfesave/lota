@@ -62,6 +62,14 @@ interface LobbyStoreState {
 
 let escuchando = false;
 
+/**
+ * Sala en la que estamos, para poder volver a entrar sola tras una
+ * reconexión. Al reconectar, el servidor crea un socket nuevo que no está en
+ * ninguna sala: sin esto la pantalla se quedaba muda aunque el jugador
+ * siguiera dentro. La contraseña se guarda solo en memoria.
+ */
+let salaActual: { code: string; password?: string } | null = null;
+
 type EstadoPartida = Pick<
   LobbyStoreState,
   | 'cuentaAtras'
@@ -107,7 +115,21 @@ export const useLobbyStore = create<LobbyStoreState>((set, get) => ({
     if (!escuchando) {
       escuchando = true;
 
-      socket.on('connect', () => set({ conectado: true }));
+      socket.on('connect', () => {
+        set({ conectado: true });
+
+        // Reconexión: volver a entrar a la sala sin molestar al jugador.
+        if (salaActual) {
+          void emitirConAck<LobbyStateView>('lobby:join', {
+            code: salaActual.code,
+            ...(salaActual.password ? { password: salaActual.password } : {}),
+          }).then((respuesta) => {
+            if (respuesta.ok) set({ estado: respuesta.data });
+            // Si la sala ya no existe (reinicio de Render), el aviso lo manda
+            // el servidor por `server:shutdown` o lo ve la pantalla de sala.
+          });
+        }
+      });
       socket.on('disconnect', () => set({ conectado: false }));
 
       // El estado del servidor manda: resincroniza cantados y marcas.
@@ -119,11 +141,17 @@ export const useLobbyStore = create<LobbyStoreState>((set, get) => ({
         set((anterior) => ({ mensajes: [...anterior.mensajes, mensaje] })),
       );
 
-      socket.on('lobby:kicked', ({ reason }) => set({ estado: null, aviso: reason }));
+      socket.on('lobby:kicked', ({ reason }) => {
+        salaActual = null;
+        set({ estado: null, aviso: reason });
+      });
 
       // Cada deploy o reinicio de Render borra las salas en memoria: hay que
       // sacar al jugador con un aviso, no dejar la pantalla congelada.
-      socket.on('server:shutdown', ({ reason }) => set({ estado: null, aviso: reason }));
+      socket.on('server:shutdown', ({ reason }) => {
+        salaActual = null;
+        set({ estado: null, aviso: reason });
+      });
 
       socket.on('game:countdown', ({ seconds }) => set({ ...sinPartida(), cuentaAtras: seconds }));
       socket.on('game:started', () => set(sinPartida()));
@@ -165,6 +193,8 @@ export const useLobbyStore = create<LobbyStoreState>((set, get) => ({
       ...(password ? { password } : {}),
     });
     if (respuesta.ok) {
+      salaActual = password === undefined ? { code } : { code, password };
+
       // Al reconectar en mitad de una partida el servidor devuelve los números
       // cantados y las marcas: hay que sembrarlos, no empezar de cero.
       set({
@@ -179,6 +209,7 @@ export const useLobbyStore = create<LobbyStoreState>((set, get) => ({
   },
 
   async salir() {
+    salaActual = null;
     await emitirConAck('lobby:leave');
     set({ estado: null, mensajes: [], ...sinPartida() });
   },
@@ -208,10 +239,14 @@ export const useLobbyStore = create<LobbyStoreState>((set, get) => ({
   cerrarVictoria: () => set({ final: null }),
   limpiarRechazo: () => set({ rechazo: null }),
   limpiarCerca: () => set({ cerca: null }),
-  olvidarSala: () => set({ estado: null, mensajes: [], ...sinPartida() }),
+  olvidarSala: () => {
+    salaActual = null;
+    set({ estado: null, mensajes: [], ...sinPartida() });
+  },
 }));
 
 /** Solo para los tests: vuelve a permitir enganchar los listeners. */
 export function resetLobbyListeners(): void {
   escuchando = false;
+  salaActual = null;
 }

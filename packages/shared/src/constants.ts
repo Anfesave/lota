@@ -12,7 +12,7 @@ export const NUMBERS_PER_ROW = 5;
 export const NUMBERS_PER_CARD = CARD_ROWS * NUMBERS_PER_ROW;
 
 /** Limites de sala. */
-export const MAX_PLAYERS = 10;
+export const MAX_PLAYERS = 20;
 export const MIN_CARDS_PER_PLAYER = 1;
 export const MAX_CARDS_PER_PLAYER = 4;
 
@@ -51,8 +51,12 @@ export const LOBBY_EMPTY_TTL_MS = 2 * 60 * 1000;
 /**
  * Margen que se le da a un jugador desconectado en WAITING antes de sacarlo.
  * Si era el anfitrion, el rol pasa al jugador mas antiguo que quede.
+ *
+ * Un minuto entero porque en el telefono basta con cambiar de aplicacion para
+ * que el navegador suspenda la pagina y se caiga el socket: sacar a alguien
+ * por mirar un mensaje de WhatsApp seria absurdo.
  */
-export const DISCONNECT_GRACE_MS = 30 * 1000;
+export const DISCONNECT_GRACE_MS = 60 * 1000;
 
 /** Cada cuanto se revisan las salas para limpiar desconectados y vacias. */
 export const LOBBY_SWEEP_INTERVAL_MS = 5 * 1000;

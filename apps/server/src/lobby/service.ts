@@ -15,6 +15,7 @@ import {
   type LobbyPreview,
   type LobbySettings,
   type LobbyStateView,
+  type LobbyTallyRow,
   type LobbyVisibility,
   type PublicLobbySummary,
   type RandomInt,
@@ -68,6 +69,8 @@ export async function createLobby(
     lineWinnerIds: [],
     winnerIds: [],
     lotero: LOTERO_POR_DEFECTO,
+    partidasJugadas: 0,
+    pozoAcumulado: 0,
     chat: [],
     createdAt: Date.now(),
   };
@@ -127,6 +130,7 @@ export async function joinLobby(lobby: Lobby, opciones: JoinLobbyOptions): Promi
     marks: new Set(),
     equipped: user.equipped,
     bet: 0,
+    tally: { partidas: 0, ganadas: 0, apostado: 0, ganado: 0 },
     joinedAt: Date.now(),
   };
 
@@ -214,6 +218,43 @@ export function setBet(lobby: Lobby, userId: string, amount: number): void {
   }
 
   jugador.bet = amount;
+}
+
+/**
+ * Apunta el resultado de una partida en la cuenta de la sala. Se llama al
+ * cerrar, con lo que se llevo cada ganador del pozo.
+ *
+ * Las cuentas viven con la sala, en memoria: son el "papelito" de la mesa, no
+ * un historial contable. Si la sala se borra, se borran con ella.
+ */
+export function recordLobbyTally(lobby: Lobby, pozoPorGanador: number): void {
+  lobby.partidasJugadas += 1;
+  lobby.pozoAcumulado += potOfLobby(lobby);
+
+  for (const jugador of lobby.players.values()) {
+    jugador.tally.partidas += 1;
+    jugador.tally.apostado += jugador.bet;
+
+    if (lobby.winnerIds.includes(jugador.userId)) {
+      jugador.tally.ganadas += 1;
+      jugador.tally.ganado += pozoPorGanador;
+    }
+  }
+}
+
+/** Cuentas de la sala, de mejor a peor balance. */
+export function toTally(lobby: Lobby): LobbyTallyRow[] {
+  return [...lobby.players.values()]
+    .map((jugador) => ({
+      userId: jugador.userId,
+      username: jugador.username,
+      partidas: jugador.tally.partidas,
+      ganadas: jugador.tally.ganadas,
+      apostado: jugador.tally.apostado,
+      ganado: jugador.tally.ganado,
+      balance: jugador.tally.ganado - jugador.tally.apostado,
+    }))
+    .sort((a, b) => b.balance - a.balance || b.ganadas - a.ganadas);
 }
 
 /** Suma de lo anotado por todos. */
@@ -388,6 +429,9 @@ export function toLobbyStateView(lobby: Lobby, viewerId: string): LobbyStateView
     pot: potOfLobby(lobby),
     yourBet: yo?.bet ?? 0,
     lotero: lobby.lotero,
+    tally: toTally(lobby),
+    partidasJugadas: lobby.partidasJugadas,
+    pozoAcumulado: lobby.pozoAcumulado,
   };
 }
 

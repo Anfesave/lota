@@ -50,12 +50,17 @@ test.describe('una partida completa entre dos navegadores', () => {
     expect(codigo).toHaveLength(6);
 
     // Con marcado automático la partida avanza sola hasta que haya lota.
-    await anfitrion.getByLabel('Marcado automático').check();
+    await anfitrion.getByLabel('Marcado automático').click();
 
     // --- El invitado entra por el código, como con un link de invitación ---
     await invitado.goto(`/sala/${codigo}`);
     await expect(invitado.getByRole('heading', { name: 'Fonda dieciochera' })).toBeVisible();
     await expect(anfitrion.getByText(nombreInvitado)).toBeVisible();
+
+    // El invitado solo puede saberlo por el servidor, asi que esto confirma
+    // que el cambio llego de verdad. Comprobarlo en el anfitrion no sirve: el
+    // click deja la casilla marcada un instante antes de que nadie responda.
+    await expect(invitado.getByLabel('Marcado automático')).toBeChecked();
 
     // --- Empieza la partida ---
     await anfitrion.getByRole('button', { name: 'Comenzar partida' }).click();

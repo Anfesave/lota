@@ -47,9 +47,13 @@ export function isValidBet(monto: number): boolean {
   return Number.isInteger(monto) && monto >= MIN_BET && monto <= MAX_BET && monto % BET_STEP === 0;
 }
 
-/** Formatea un monto en pesos chilenos: 1500 -> "$1.500". */
+/**
+ * Formatea un monto en pesos chilenos: 1500 -> "$1.500".
+ * El signo va delante del peso, no detrás: "-$2.000", no "$-2.000".
+ */
 export function formatPesos(monto: number): string {
-  return `$${monto.toLocaleString('es-CL')}`;
+  const signo = monto < 0 ? '-' : '';
+  return `${signo}$${Math.abs(monto).toLocaleString('es-CL')}`;
 }
 
 // --- Aviso de que alguien está por ganar -----------------------------------
