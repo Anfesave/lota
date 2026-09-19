@@ -1,9 +1,12 @@
-import { formatPesos, type GameFinished } from '@lota/shared';
+import { formatPesos, type GameFinished, type LobbyStateView } from '@lota/shared';
 import { t } from '../../i18n/es-CL.js';
 import { Carton } from './Carton.js';
+import { Cuentas } from './Cuentas.js';
 
 interface VictoriaProps {
   final: GameFinished;
+  /** Estado de la sala, para mostrar las cuentas acumuladas aquí mismo. */
+  estado: LobbyStateView;
   /** Id de quien mira, para decirle lo que se llevó él. */
   miId: string;
   onVolver: () => void;
@@ -14,7 +17,7 @@ interface VictoriaProps {
  * Overlay de victoria: lo ven todos, no solo quien ganó. Muestra el mensaje de
  * victoria del ganador y el cartón con el que ganó.
  */
-export function Victoria({ final, miId, onVolver, onSalir }: VictoriaProps) {
+export function Victoria({ final, estado, miId, onVolver, onSalir }: VictoriaProps) {
   // Viene de la red: un servidor viejo podría no mandarlo durante un deploy.
   const misMonedas = final.coinsByUser?.[miId] ?? 0;
   const gane = final.winners.some((ganador) => ganador.userId === miId);
@@ -88,6 +91,9 @@ export function Victoria({ final, miId, onVolver, onSalir }: VictoriaProps) {
         {pozoRepartido ? (
           <p className="text-xs text-slate-500">{t.victoria.pozoEntreVarios}</p>
         ) : null}
+
+        {/* Cómo va la mesa tras esta partida, sin tener que cerrar nada. */}
+        <Cuentas estado={estado} compacto />
 
         <div className="flex flex-wrap justify-center gap-2">
           <button

@@ -165,6 +165,8 @@ export const t = {
     sinPartidas: 'Todavía no se juega ninguna partida en esta sala.',
     resumen: (partidas: number, pozo: string) =>
       partidas === 1 ? `1 partida · ${pozo} en juego` : `${partidas} partidas · ${pozo} en juego`,
+    resumenSinPlata: (partidas: number) =>
+      partidas === 1 ? '1 partida jugada' : `${partidas} partidas jugadas`,
     jugador: 'Jugador',
     ganadas: 'Ganadas',
     puesto: 'Puso',

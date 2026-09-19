@@ -162,9 +162,7 @@ export function Sala() {
           ) : (
             <>
               <ListaJugadores estado={estado} soyAnfitrion={soyAnfitrion} miId={user.id} />
-              {estado.settings.apuestas || estado.partidasJugadas > 0 ? (
-                <Cuentas estado={estado} />
-              ) : null}
+              <Cuentas estado={estado} />
               <Configuracion estado={estado} soyAnfitrion={soyAnfitrion} />
             </>
           )}
@@ -172,7 +170,11 @@ export function Sala() {
 
         <div className="flex flex-col gap-5">
           {enJuego ? (
-            <ListaJugadores estado={estado} soyAnfitrion={false} miId={user.id} />
+            <>
+              <ListaJugadores estado={estado} soyAnfitrion={false} miId={user.id} />
+              {/* Durante la partida solo si ya hay algo que contar. */}
+              {estado.partidasJugadas > 0 ? <Cuentas estado={estado} /> : null}
+            </>
           ) : (
             <Acciones estado={estado} soyAnfitrion={soyAnfitrion} listo={yo?.ready ?? false} />
           )}
@@ -183,6 +185,7 @@ export function Sala() {
       {final ? (
         <Victoria
           final={final}
+          estado={estado}
           miId={user.id}
           onVolver={cerrarVictoria}
           onSalir={() => {

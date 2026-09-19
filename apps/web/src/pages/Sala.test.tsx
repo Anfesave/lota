@@ -351,13 +351,32 @@ describe('cuentas de la sala', () => {
     },
   ];
 
-  it('no aparecen antes de la primera partida', async () => {
+  it('están siempre a la vista, aunque no se haya jugado nada', async () => {
     simularApi();
     socketFalso.respuestas.set('lobby:join', { ok: true, data: estadoDeSala() });
     renderizar('/sala/K7P2QX');
     await screen.findByRole('heading', { name: 'Fonda dieciochera' });
 
-    expect(screen.queryByText(t.cuentas.titulo)).not.toBeInTheDocument();
+    expect(screen.getByText(t.cuentas.titulo)).toBeInTheDocument();
+    expect(screen.getByText(t.cuentas.sinPartidas)).toBeInTheDocument();
+  });
+
+  it('sin apuestas se muestran solo las partidas ganadas, sin columnas de plata', async () => {
+    // Si no hubo pozo, las columnas de dinero serían una pared de $0.
+    const estado = estadoDeSala({
+      tally: [{ ...CUENTAS[0]!, apostado: 0, ganado: 0, balance: 0 }],
+      partidasJugadas: 2,
+      pozoAcumulado: 0,
+    });
+
+    simularApi();
+    socketFalso.respuestas.set('lobby:join', { ok: true, data: estado });
+    renderizar('/sala/K7P2QX');
+    await screen.findByRole('heading', { name: estado.name });
+
+    expect(screen.getByText(t.cuentas.resumenSinPlata(2))).toBeInTheDocument();
+    expect(screen.queryByText(t.cuentas.balance)).not.toBeInTheDocument();
+    expect(screen.getByText(t.cuentas.ganadas)).toBeInTheDocument();
   });
 
   it('muestran quien gana y quien va perdiendo', async () => {

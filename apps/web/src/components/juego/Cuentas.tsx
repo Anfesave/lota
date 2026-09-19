@@ -1,6 +1,12 @@
 import { formatPesos, type LobbyStateView } from '@lota/shared';
 import { t } from '../../i18n/es-CL.js';
 
+interface CuentasProps {
+  estado: LobbyStateView;
+  /** Versión apretada, para meterla dentro de la pantalla de victoria. */
+  compacto?: boolean;
+}
+
 /**
  * Cuentas de la sala a lo largo de las partidas: quién ha ganado, cuánto puso
  * cada uno y cómo va su balance. Es el papelito de la mesa, y se actualiza
@@ -8,8 +14,13 @@ import { t } from '../../i18n/es-CL.js';
  *
  * Vive con la sala, en memoria: si la sala se cierra, se cierra la cuenta.
  */
-export function Cuentas({ estado }: { estado: LobbyStateView }) {
+export function Cuentas({ estado, compacto = false }: CuentasProps) {
+  // Sin apuestas de por medio las columnas de plata serían una pared de $0,
+  // así que solo se muestran cuando ha habido pozo alguna vez.
+  const conPlata = estado.pozoAcumulado > 0 || estado.settings.apuestas;
+
   if (estado.partidasJugadas === 0) {
+    if (compacto) return null;
     return (
       <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
         <h3 className="mb-2 font-bold text-slate-100">{t.cuentas.titulo}</h3>
@@ -19,11 +30,19 @@ export function Cuentas({ estado }: { estado: LobbyStateView }) {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+    <section
+      className={
+        compacto
+          ? 'w-full rounded-xl border border-slate-700 bg-slate-950/50 p-4 text-left'
+          : 'rounded-2xl border border-slate-800 bg-slate-900/60 p-5'
+      }
+    >
       <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-bold text-slate-100">{t.cuentas.titulo}</h3>
         <p className="text-xs text-slate-500">
-          {t.cuentas.resumen(estado.partidasJugadas, formatPesos(estado.pozoAcumulado))}
+          {conPlata
+            ? t.cuentas.resumen(estado.partidasJugadas, formatPesos(estado.pozoAcumulado))
+            : t.cuentas.resumenSinPlata(estado.partidasJugadas)}
         </p>
       </header>
 
@@ -36,15 +55,19 @@ export function Cuentas({ estado }: { estado: LobbyStateView }) {
             <th scope="col" className="pb-2 text-center font-medium">
               {t.cuentas.ganadas}
             </th>
-            <th scope="col" className="pb-2 text-right font-medium">
-              {t.cuentas.puesto}
-            </th>
-            <th scope="col" className="pb-2 text-right font-medium">
-              {t.cuentas.llevado}
-            </th>
-            <th scope="col" className="pb-2 text-right font-medium">
-              {t.cuentas.balance}
-            </th>
+            {conPlata ? (
+              <>
+                <th scope="col" className="pb-2 text-right font-medium">
+                  {t.cuentas.puesto}
+                </th>
+                <th scope="col" className="pb-2 text-right font-medium">
+                  {t.cuentas.llevado}
+                </th>
+                <th scope="col" className="pb-2 text-right font-medium">
+                  {t.cuentas.balance}
+                </th>
+              </>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -56,31 +79,37 @@ export function Cuentas({ estado }: { estado: LobbyStateView }) {
               <td className="py-1.5 text-center tabular-nums text-slate-400">
                 {fila.ganadas}/{fila.partidas}
               </td>
-              <td className="py-1.5 text-right tabular-nums text-slate-400">
-                {formatPesos(fila.apostado)}
-              </td>
-              <td className="py-1.5 text-right tabular-nums text-slate-400">
-                {formatPesos(fila.ganado)}
-              </td>
-              <td
-                className={[
-                  'py-1.5 text-right font-bold tabular-nums',
-                  fila.balance > 0
-                    ? 'text-emerald-300'
-                    : fila.balance < 0
-                      ? 'text-rose-300'
-                      : 'text-slate-500',
-                ].join(' ')}
-              >
-                {fila.balance > 0 ? '+' : ''}
-                {formatPesos(fila.balance)}
-              </td>
+              {conPlata ? (
+                <>
+                  <td className="py-1.5 text-right tabular-nums text-slate-400">
+                    {formatPesos(fila.apostado)}
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums text-slate-400">
+                    {formatPesos(fila.ganado)}
+                  </td>
+                  <td
+                    className={[
+                      'py-1.5 text-right font-bold tabular-nums',
+                      fila.balance > 0
+                        ? 'text-emerald-300'
+                        : fila.balance < 0
+                          ? 'text-rose-300'
+                          : 'text-slate-500',
+                    ].join(' ')}
+                  >
+                    {fila.balance > 0 ? '+' : ''}
+                    {formatPesos(fila.balance)}
+                  </td>
+                </>
+              ) : null}
             </tr>
           ))}
         </tbody>
       </table>
 
-      <p className="mt-3 text-xs text-slate-600">{t.cuentas.recordatorio}</p>
+      {conPlata && !compacto ? (
+        <p className="mt-3 text-xs text-slate-600">{t.cuentas.recordatorio}</p>
+      ) : null}
     </section>
   );
 }

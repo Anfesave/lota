@@ -552,3 +552,68 @@ describe('monedas por jugar', () => {
     expect(within(overlay).queryByText(t.victoria.tuParte(50))).not.toBeInTheDocument();
   });
 });
+
+describe('cuentas al terminar la partida', () => {
+  const TALLY = [
+    {
+      userId: 'usuario-2',
+      username: 'la_juanita',
+      partidas: 2,
+      ganadas: 2,
+      apostado: 2000,
+      ganado: 5000,
+      balance: 3000,
+    },
+    {
+      userId: YO.id,
+      username: YO.username,
+      partidas: 2,
+      ganadas: 0,
+      apostado: 2000,
+      ganado: 0,
+      balance: -2000,
+    },
+  ];
+
+  it('la tabla sale en la propia pantalla de victoria, sin cerrar nada', async () => {
+    // Antes quedaba tapada por el overlay justo cuando se quiere mirar.
+    await entrarEnPartida(
+      estadoEnJuego({ drawn: TODOS, tally: TALLY, partidasJugadas: 2, pozoAcumulado: 7000 }),
+    );
+
+    socketFalso.servidorEmite('game:finished', {
+      reason: 'LOTA',
+      drawn: TODOS,
+      coinsByUser: { 'usuario-2': 50, [YO.id]: 10 },
+      winners: [
+        {
+          userId: 'usuario-2',
+          username: 'la_juanita',
+          victoryMessage: 'Gané',
+          equipped: {},
+          card: CARTON,
+          coinsWon: 50,
+          potWon: 5000,
+        },
+      ],
+    });
+
+    const overlay = await screen.findByRole('dialog');
+    expect(within(overlay).getByText(t.cuentas.titulo)).toBeInTheDocument();
+    expect(within(overlay).getByText('+$3.000')).toBeInTheDocument();
+    expect(within(overlay).getByText('-$2.000')).toBeInTheDocument();
+  });
+
+  it('durante la partida también se ven, si ya hay algo que contar', async () => {
+    await entrarEnPartida(estadoEnJuego({ tally: TALLY, partidasJugadas: 2, pozoAcumulado: 7000 }));
+
+    expect(screen.getByText(t.cuentas.titulo)).toBeInTheDocument();
+    expect(screen.getByText('+$3.000')).toBeInTheDocument();
+  });
+
+  it('en la primera partida no estorban con una tabla vacía', async () => {
+    await entrarEnPartida(estadoEnJuego());
+
+    expect(screen.queryByText(t.cuentas.titulo)).not.toBeInTheDocument();
+  });
+});

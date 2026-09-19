@@ -189,6 +189,11 @@ partidas jugó cada uno, cuántas ganó, cuánto puso y cuánto se llevó. Se ac
 partida (`recordLobbyTally`) y viaja en `lobby:state`. Vive con la sala, en memoria: si la sala se
 cierra, se cierra la cuenta. El historial que sí persiste es el del perfil.
 
+Se muestra en tres sitios, y eso es a propósito: **dentro de la pantalla de victoria** (que es
+cuando se quiere mirar, y antes quedaba tapada por el overlay), siempre en la sala, y durante la
+partida si ya hay algo que contar. Sin apuestas de por medio se ocultan las columnas de plata,
+que serían una pared de $0.
+
 ### Apuestas
 
 **Son un registro entre amigos, no dinero de verdad.** La aplicación anota cuánto puso cada
