@@ -1,7 +1,8 @@
 import {
+  COINS_FULL_CARD,
   COINS_LINE,
+  COINS_PARTICIPATION,
   MIN_PLAYERS_FOR_COINS,
-  coinsForFullCard,
   splitPrize,
   type GameFinished,
   type GameHistoryEntry,
@@ -30,22 +31,23 @@ export function potOf(lobby: Lobby): number {
  * Nada de esto puede tumbar la partida: si la base falla, se registra y los
  * jugadores igual ven quién ganó.
  */
+export interface SettleResult {
+  winners: WinnerView[];
+  /** Monedas por jugador, incluidos los que no ganaron. */
+  coinsByUser: Record<string, number>;
+}
+
 export async function settleGame(
   lobby: Lobby,
   reason: GameFinished['reason'],
   log: (error: unknown, mensaje: string) => void,
-): Promise<WinnerView[]> {
+): Promise<SettleResult> {
   const ganadores = toWinnerViews(lobby, lobby.winnerIds);
   const pozo = potOf(lobby);
 
   // Anti-farmeo: jugar solo no da monedas (PLAN.md sección 9). Una partida
   // cancelada tampoco reparte nada.
   const reparteMonedas = reason !== 'CANCELADA' && lobby.players.size >= MIN_PLAYERS_FOR_COINS;
-
-  const premioCarton = reparteMonedas
-    ? splitPrize(coinsForFullCard(lobby.players.size), lobby.winnerIds.length)
-    : 0;
-  const premioLinea = reparteMonedas ? splitPrize(COINS_LINE, lobby.lineWinnerIds.length) : 0;
 
   // El pozo se lo llevan quienes cantaron lota. Si nadie ganó no se reparte:
   // cada uno se queda con lo suyo.
@@ -55,15 +57,26 @@ export async function settleGame(
   const monedasPorJugador = new Map<string, number>();
 
   try {
-    for (const userId of lobby.winnerIds) {
-      const otorgadas = await capDailyWinnings(userId, premioCarton);
-      monedasPorJugador.set(userId, otorgadas);
-    }
-    for (const userId of lobby.lineWinnerIds) {
-      // Quien gana línea y cartón acumula ambos premios.
-      const yaTiene = monedasPorJugador.get(userId) ?? 0;
-      const otorgadas = await capDailyWinnings(userId, premioLinea);
-      monedasPorJugador.set(userId, yaTiene + otorgadas);
+    for (const jugador of lobby.players.values()) {
+      if (!reparteMonedas) {
+        monedasPorJugador.set(jugador.userId, 0);
+        continue;
+      }
+
+      const ganoCarton = lobby.winnerIds.includes(jugador.userId);
+      const ganoLinea = lobby.lineWinnerIds.includes(jugador.userId);
+
+      // Los premios de cartón y línea se reparten entre quienes empataron; la
+      // participación no se divide, le toca entera a cada uno.
+      const porCarton = ganoCarton
+        ? splitPrize(COINS_FULL_CARD, lobby.winnerIds.length)
+        : COINS_PARTICIPATION;
+      const porLinea = ganoLinea ? splitPrize(COINS_LINE, lobby.lineWinnerIds.length) : 0;
+
+      monedasPorJugador.set(
+        jugador.userId,
+        await capDailyWinnings(jugador.userId, porCarton + porLinea),
+      );
     }
   } catch (error) {
     log(error, 'no se pudo calcular el reparto de monedas');
@@ -84,7 +97,14 @@ export async function settleGame(
     log(error, 'no se pudo guardar la partida');
   }
 
-  return ganadores;
+  return { winners: ganadores, coinsByUser: Object.fromEntries(monedasPorJugador) };
+}
+
+/** Motivo del apunte contable segun como termino el jugador. */
+function motivoDe(lobby: Lobby, userId: string): 'GAME_WIN' | 'LINE_WIN' | 'GAME_PLAYED' {
+  if (lobby.winnerIds.includes(userId)) return 'GAME_WIN';
+  if (lobby.lineWinnerIds.includes(userId)) return 'LINE_WIN';
+  return 'GAME_PLAYED';
 }
 
 async function persistir(
@@ -132,8 +152,7 @@ async function persistir(
   // del libro contable apunte a algo que existe.
   for (const [userId, cantidad] of monedas) {
     if (cantidad <= 0) continue;
-    const motivo = lobby.winnerIds.includes(userId) ? 'GAME_WIN' : 'LINE_WIN';
-    await grantCoins(userId, cantidad, motivo, partida.id);
+    await grantCoins(userId, cantidad, motivoDe(lobby, userId), partida.id);
   }
 }
 

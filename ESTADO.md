@@ -53,7 +53,7 @@ pnpm test:e2e       # 2 e2e; compila primero
 | 3    | Salas en memoria, Socket.IO autenticado, chat, expulsar, migración de anfitrión           |
 | 4    | Partida completa: cuenta atrás, locutor, marcar, cantar, empates, reconexión              |
 | 5    | Locutor por Web Speech API, controles de voz, dichos, bola animada, tablero de 90         |
-| 6    | Monedas, tienda de 17 cosméticos, anti-farmeo, bono diario, historial, perfil             |
+| 6    | Monedas (50 ganar / 10 participar), tienda, anti-farmeo, bono diario, historial, perfil   |
 
 Más, fuera del plan y pedido por el usuario:
 
@@ -107,8 +107,9 @@ Vale la pena conocerlos para no reintroducirlos:
 4. Completar el checklist de seguridad de la sección 11.
 
 **Ojo al desplegar:** desde la Fase 1 la aplicación necesita Neon configurado en Render
-(`DATABASE_URL` y `DATABASE_URL_DIRECT`), o el arranque falla a propósito. Hay dos migraciones
-pendientes de aplicar en producción: `0001` (usuarios y sesiones) y `0002` (economía).
+(`DATABASE_URL` y `DATABASE_URL_DIRECT`), o el arranque falla a propósito. Hay tres migraciones
+pendientes de aplicar en producción: `0001` (usuarios y sesiones), `0002` (economía) y `0003`
+(motivo `GAME_PLAYED` en el libro contable).
 
 ## Cosas menores pendientes
 

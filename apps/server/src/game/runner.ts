@@ -23,7 +23,10 @@ export interface GameEvents {
    * ganadores ya con sus premios. Vive fuera del runner para que el motor no
    * dependa de la base de datos.
    */
-  settle(lobby: Lobby, reason: GameFinished['reason']): Promise<WinnerView[]>;
+  settle(
+    lobby: Lobby,
+    reason: GameFinished['reason'],
+  ): Promise<{ winners: WinnerView[]; coinsByUser: Record<string, number> }>;
   state(lobbyId: string): Promise<void>;
   error(mensaje: string, error: unknown): void;
 }
@@ -164,10 +167,11 @@ export class GameRunner {
 
     try {
       // La contabilidad primero: la pantalla de victoria muestra monedas y pozo.
-      const ganadores = await this.#events.settle(lobby, reason);
+      const { winners, coinsByUser } = await this.#events.settle(lobby, reason);
 
       this.#events.finished(lobbyId, {
-        winners: ganadores,
+        winners,
+        coinsByUser,
         drawn: [...lobby.drawn],
         reason,
       });
@@ -177,6 +181,7 @@ export class GameRunner {
       // Aunque falle el reparto, la sala tiene que enterarse de que termino.
       this.#events.finished(lobbyId, {
         winners: toWinnerViews(lobby, lobby.winnerIds),
+        coinsByUser: {},
         drawn: [...lobby.drawn],
         reason,
       });

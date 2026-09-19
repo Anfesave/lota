@@ -34,8 +34,9 @@ export async function grantCoins(
 }
 
 /**
- * Cuántas monedas lleva ganadas hoy **en partidas**. El bono diario y las
- * compras no cuentan para el tope anti-farmeo.
+ * Cuántas monedas lleva ganadas hoy **en partidas**, incluida la
+ * participación. El bono diario y las compras no cuentan para el tope
+ * anti-farmeo.
  */
 export async function coinsWonToday(userId: string, ahora = new Date()): Promise<number> {
   const [fila] = await getDb()
@@ -45,7 +46,7 @@ export async function coinsWonToday(userId: string, ahora = new Date()): Promise
       and(
         eq(coinTransactions.userId, userId),
         gte(coinTransactions.createdAt, inicioDelDia(ahora)),
-        sql`${coinTransactions.reason} in ('GAME_WIN', 'LINE_WIN')`,
+        sql`${coinTransactions.reason} in ('GAME_WIN', 'LINE_WIN', 'GAME_PLAYED')`,
       ),
     );
 

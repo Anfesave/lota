@@ -1,0 +1,1 @@
+ALTER TYPE "public"."coin_reason" ADD VALUE 'GAME_PLAYED' BEFORE 'PURCHASE';

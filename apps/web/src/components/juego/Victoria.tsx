@@ -4,6 +4,8 @@ import { Carton } from './Carton.js';
 
 interface VictoriaProps {
   final: GameFinished;
+  /** Id de quien mira, para decirle lo que se llevó él. */
+  miId: string;
   onVolver: () => void;
   onSalir: () => void;
 }
@@ -12,7 +14,10 @@ interface VictoriaProps {
  * Overlay de victoria: lo ven todos, no solo quien ganó. Muestra el mensaje de
  * victoria del ganador y el cartón con el que ganó.
  */
-export function Victoria({ final, onVolver, onSalir }: VictoriaProps) {
+export function Victoria({ final, miId, onVolver, onSalir }: VictoriaProps) {
+  // Viene de la red: un servidor viejo podría no mandarlo durante un deploy.
+  const misMonedas = final.coinsByUser?.[miId] ?? 0;
+  const gane = final.winners.some((ganador) => ganador.userId === miId);
   const cantados = new Set(final.drawn);
   const hayGanadores = final.winners.length > 0;
   const pozoRepartido = final.winners.length > 1 && (final.winners[0]?.potWon ?? 0) > 0;
@@ -73,6 +78,12 @@ export function Victoria({ final, onVolver, onSalir }: VictoriaProps) {
             ))}
           </ul>
         )}
+
+        {misMonedas > 0 && !gane ? (
+          <p className="rounded-full bg-lota-oro/10 px-4 py-1.5 text-sm font-semibold text-lota-oro">
+            {t.victoria.tuParte(misMonedas)}
+          </p>
+        ) : null}
 
         {pozoRepartido ? (
           <p className="text-xs text-slate-500">{t.victoria.pozoEntreVarios}</p>

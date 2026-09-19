@@ -77,6 +77,8 @@ export const rarityEnum = pgEnum('rarity', ['COMUN', 'RARO', 'EPICO', 'LEGENDARI
 export const coinReasonEnum = pgEnum('coin_reason', [
   'GAME_WIN',
   'LINE_WIN',
+  /** Por terminar la partida sin ganarla. */
+  'GAME_PLAYED',
   'PURCHASE',
   'DAILY_BONUS',
   'ADMIN',

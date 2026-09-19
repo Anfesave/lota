@@ -41,6 +41,11 @@ export interface ClaimRejected {
 export interface GameFinished {
   winners: WinnerView[];
   drawn: number[];
+  /**
+   * Monedas que se llevo cada jugador, por id. Incluye a los que no ganaron:
+   * participar tambien paga, y cada uno tiene que poder ver lo suyo.
+   */
+  coinsByUser: Record<string, number>;
   /** Por que termino: alguien canto lota o se acabo la bolsa. */
   reason: 'LOTA' | 'BOLSA_VACIA' | 'CANCELADA';
 }

@@ -294,6 +294,7 @@ describe('pantalla de victoria', () => {
     socketFalso.servidorEmite('game:finished', {
       reason: 'LOTA',
       drawn: TODOS,
+      coinsByUser: { 'usuario-2': 50, [YO.id]: 10 },
       winners: [
         {
           userId: 'usuario-2',
@@ -301,7 +302,7 @@ describe('pantalla de victoria', () => {
           victoryMessage: 'Se cayó la lota, compadre',
           equipped: {},
           card: CARTON,
-          coinsWon: 0,
+          coinsWon: 50,
           potWon: 0,
         },
       ],
@@ -330,6 +331,7 @@ describe('pantalla de victoria', () => {
     socketFalso.servidorEmite('game:finished', {
       reason: 'LOTA',
       drawn: TODOS,
+      coinsByUser: { u2: 25, u3: 25, [YO.id]: 10 },
       winners: [ganador('u2', 'la_juanita'), ganador('u3', 'el_tito')],
     });
 
@@ -345,6 +347,7 @@ describe('pantalla de victoria', () => {
     socketFalso.servidorEmite('game:finished', {
       reason: 'BOLSA_VACIA',
       drawn: TODOS,
+      coinsByUser: { [YO.id]: 10 },
       winners: [],
     });
 
@@ -355,7 +358,12 @@ describe('pantalla de victoria', () => {
   it('volver a la sala cierra el overlay', async () => {
     await entrarEnPartida(estadoEnJuego({ drawn: TODOS }));
 
-    socketFalso.servidorEmite('game:finished', { reason: 'LOTA', drawn: TODOS, winners: [] });
+    socketFalso.servidorEmite('game:finished', {
+      reason: 'LOTA',
+      drawn: TODOS,
+      coinsByUser: {},
+      winners: [],
+    });
     await screen.findByRole('dialog');
 
     await userEvent.click(screen.getByRole('button', { name: t.victoria.volverALaSala }));
@@ -440,6 +448,7 @@ describe('pozo de apuestas', () => {
     socketFalso.servidorEmite('game:finished', {
       reason: 'LOTA',
       drawn: TODOS,
+      coinsByUser: { 'usuario-2': 50, [YO.id]: 10 },
       winners: [
         {
           userId: 'usuario-2',
@@ -447,7 +456,7 @@ describe('pozo de apuestas', () => {
           victoryMessage: 'Se cayó la lota, compadre',
           equipped: {},
           card: CARTON,
-          coinsWon: 60,
+          coinsWon: 50,
           potWon: 3000,
         },
       ],
@@ -456,7 +465,7 @@ describe('pozo de apuestas', () => {
     const overlay = await screen.findByRole('dialog');
     expect(within(overlay).getByText(t.victoria.seLlevaElPozo('$3.000'))).toBeInTheDocument();
     expect(within(overlay).getByText(/Se cayó la lota, compadre/)).toBeInTheDocument();
-    expect(within(overlay).getByText(t.victoria.monedas(60))).toBeInTheDocument();
+    expect(within(overlay).getByText(t.victoria.monedas(50))).toBeInTheDocument();
   });
 });
 
@@ -476,5 +485,70 @@ describe('la lotera que canta', () => {
       'src',
       '/loteros/rayada.webp',
     );
+  });
+});
+
+describe('monedas por jugar', () => {
+  it('a quien no gana le dice cuánto se llevó por participar', async () => {
+    await entrarEnPartida(estadoEnJuego({ drawn: TODOS }));
+
+    socketFalso.servidorEmite('game:finished', {
+      reason: 'LOTA',
+      drawn: TODOS,
+      coinsByUser: { 'usuario-2': 50, [YO.id]: 10 },
+      winners: [
+        {
+          userId: 'usuario-2',
+          username: 'la_juanita',
+          victoryMessage: 'Gané',
+          equipped: {},
+          card: CARTON,
+          coinsWon: 50,
+          potWon: 0,
+        },
+      ],
+    });
+
+    const overlay = await screen.findByRole('dialog');
+    expect(within(overlay).getByText(t.victoria.tuParte(10))).toBeInTheDocument();
+  });
+
+  it('el saldo de la cabecera se actualiza sin recargar', async () => {
+    await entrarEnPartida(estadoEnJuego({ drawn: TODOS }));
+    const antes = useAuthStore.getState().user!.coins;
+
+    socketFalso.servidorEmite('game:finished', {
+      reason: 'BOLSA_VACIA',
+      drawn: TODOS,
+      coinsByUser: { [YO.id]: 10 },
+      winners: [],
+    });
+
+    await waitFor(() => expect(useAuthStore.getState().user?.coins).toBe(antes + 10));
+  });
+
+  it('al ganador no se le repite el aviso de participación', async () => {
+    await entrarEnPartida(estadoEnJuego({ drawn: TODOS }));
+
+    socketFalso.servidorEmite('game:finished', {
+      reason: 'LOTA',
+      drawn: TODOS,
+      coinsByUser: { [YO.id]: 50 },
+      winners: [
+        {
+          userId: YO.id,
+          username: YO.username,
+          victoryMessage: YO.victoryMessage,
+          equipped: {},
+          card: CARTON,
+          coinsWon: 50,
+          potWon: 0,
+        },
+      ],
+    });
+
+    const overlay = await screen.findByRole('dialog');
+    expect(within(overlay).getByText(t.victoria.monedas(50))).toBeInTheDocument();
+    expect(within(overlay).queryByText(t.victoria.tuParte(50))).not.toBeInTheDocument();
   });
 });

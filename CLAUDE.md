@@ -176,8 +176,10 @@ sin tener que pedirlos.
   movimiento se hace en una transacción que inserta el apunte y actualiza el saldo.
 - Gastar usa `update ... where coins >= precio`: **lo decide Postgres**, así que dos compras a la
   vez no pueden dejar el saldo negativo. Hay un test de compras concurrentes que lo comprueba.
-- Anti-farmeo: jugar solo no da monedas, y hay un tope de 500 al día por usuario. El bono diario
-  no cuenta para ese tope.
+- Premios: **50 por ganar el cartón, 10 por participar**. Son excluyentes: quien gana se lleva
+  50, no 60. La línea (15) sí se suma. Empatar reparte el premio; la participación no se divide.
+- Anti-farmeo: jugar solo no da monedas, y hay un tope de 500 al día por usuario, que ahora
+  incluye la participación. El bono diario no cuenta para ese tope.
 - Los cosméticos gratis cuentan como propios desde el principio: son el punto de partida.
 
 ### Cuentas de la sala

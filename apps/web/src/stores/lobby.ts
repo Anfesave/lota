@@ -12,6 +12,7 @@ import type {
 } from '@lota/shared';
 import { create } from 'zustand';
 import { conectarSocket, emitirConAck, getSocket } from '../lib/socket.js';
+import { useAuthStore } from './auth.js';
 
 interface LobbyStoreState {
   conectado: boolean;
@@ -177,7 +178,15 @@ export const useLobbyStore = create<LobbyStoreState>((set, get) => ({
         }),
       );
       socket.on('game:lineWon', ({ winners }) => set({ ganadoresLinea: winners }));
-      socket.on('game:finished', (final) => set({ final }));
+      socket.on('game:finished', (final) => {
+        set({ final });
+
+        // Participar tambien paga: hay que refrescar el saldo de la cabecera
+        // sin esperar a la siguiente consulta de /me.
+        const { user, setUser } = useAuthStore.getState();
+        const ganadas = user ? (final.coinsByUser?.[user.id] ?? 0) : 0;
+        if (user && ganadas > 0) setUser({ ...user, coins: user.coins + ganadas });
+      });
       socket.on('game:claimRejected', (rechazo) => set({ rechazo }));
       socket.on('game:playerClose', (cerca) => set({ cerca }));
     }

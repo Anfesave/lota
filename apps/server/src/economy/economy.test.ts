@@ -3,7 +3,9 @@ import { eq, sql } from 'drizzle-orm';
 import {
   COINS_DAILY_BONUS,
   DAILY_COINS_CAP,
-  coinsForFullCard,
+  COINS_FULL_CARD,
+  COINS_PARTICIPATION,
+  coinsForPlayer,
   formatPesos,
   isValidBet,
   splitPrize,
@@ -80,10 +82,22 @@ describe('cuentas de monedas', () => {
     expect(splitPrize(50, 0)).toBe(0);
   });
 
-  it('el cartón lleno paga más con más rivales', () => {
-    expect(coinsForFullCard(1)).toBe(50);
-    expect(coinsForFullCard(2)).toBe(60);
-    expect(coinsForFullCard(10)).toBe(140);
+  it('ganar paga 50 y participar 10, sin depender de cuánta gente haya', () => {
+    expect(COINS_FULL_CARD).toBe(50);
+    expect(COINS_PARTICIPATION).toBe(10);
+
+    expect(coinsForPlayer({ ganoCarton: true, ganoLinea: false })).toBe(50);
+    expect(coinsForPlayer({ ganoCarton: false, ganoLinea: false })).toBe(10);
+  });
+
+  it('ganar el cartón sustituye la participación, no se suma', () => {
+    // 50 por ganar, no 60: son premios excluyentes.
+    expect(coinsForPlayer({ ganoCarton: true, ganoLinea: false })).toBe(COINS_FULL_CARD);
+  });
+
+  it('la línea sí se suma a lo que toque', () => {
+    expect(coinsForPlayer({ ganoCarton: false, ganoLinea: true })).toBe(25);
+    expect(coinsForPlayer({ ganoCarton: true, ganoLinea: true })).toBe(65);
   });
 
   it('formatea los pesos con el signo delante', () => {

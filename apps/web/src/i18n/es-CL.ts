@@ -153,6 +153,7 @@ export const t = {
     sinGanadorDetalle: 'Salieron los 90 y nadie completó el cartón.',
     monedas: (cuantas: number) => `+${cuantas} monedas`,
     sinMonedas: 'Sin monedas esta vez',
+    tuParte: (monedas: number) => `Te llevaste ${monedas} monedas por jugar`,
     cartonGanador: 'Cartón ganador',
     seLlevaElPozo: (monto: string) => `Se lleva el pozo: ${monto}`,
     pozoEntreVarios: 'El pozo se reparte entre quienes ganaron.',

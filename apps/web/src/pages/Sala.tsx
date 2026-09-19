@@ -183,6 +183,7 @@ export function Sala() {
       {final ? (
         <Victoria
           final={final}
+          miId={user.id}
           onVolver={cerrarVictoria}
           onSalir={() => {
             cerrarVictoria();

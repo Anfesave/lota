@@ -13,6 +13,9 @@ import {
   type PlayerCloseToWin,
   type WinnerView,
 } from '@lota/shared';
+import { eq } from 'drizzle-orm';
+import { coinTransactions, users } from '../db/schema.js';
+import { getDb } from '../db/index.js';
 import { closeToWinAnnouncements, drawNext } from '../game/engine.js';
 import { crearAyudantes } from '../test/socketHelpers.js';
 import type { Lobby } from '../lobby/types.js';
@@ -677,5 +680,82 @@ describe('marcado automático', () => {
     forzarCanto(code);
 
     expect(lobby.players.get(anfitrion.userId)!.marks.size).toBe(0);
+  });
+});
+
+describe('monedas al terminar', () => {
+  /** Juega una partida de dos y hace ganar al anfitrión. */
+  async function partidaDeDos() {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion, {
+      settings: { prizeMode: 'CARTON_LLENO' },
+    });
+    const invitado = await ayudantes.entrarEnSala(code);
+
+    const comienzos = ayudantes.recolectar<{ yourCards: number[][][] }>(socket, 'game:started');
+    const finales = ayudantes.recolectar<GameFinished>(socket, 'game:finished');
+
+    await ayudantes.emitir(socket, 'game:start');
+    const { yourCards } = await comienzos.esperarQue(() => true);
+
+    cantarExactamente(code, cardNumbers(yourCards[0]!));
+    await ayudantes.emitir(socket, 'game:claim', { type: 'FULL', cardIndex: 0 });
+
+    return { anfitrion, invitado, final: await finales.esperarQue(() => true) };
+  }
+
+  it('el que gana se lleva 50 y el que no, 10 por participar', async () => {
+    const { anfitrion, invitado, final } = await partidaDeDos();
+
+    expect(final.coinsByUser[anfitrion.userId]).toBe(50);
+    expect(final.coinsByUser[invitado.sesion.userId]).toBe(10);
+    expect(final.winners[0]!.coinsWon).toBe(50);
+  });
+
+  it('el premio no depende de cuánta gente haya en la sala', async () => {
+    // Antes crecía con cada rival; ahora son 50 fijos.
+    const { anfitrion, final } = await partidaDeDos();
+    expect(final.coinsByUser[anfitrion.userId]).toBe(50);
+  });
+
+  it('los saldos quedan guardados en la base', async () => {
+    const { anfitrion, invitado } = await partidaDeDos();
+    const db = getDb();
+
+    const [ganador] = await db
+      .select({ coins: users.coins })
+      .from(users)
+      .where(eq(users.id, anfitrion.userId));
+    const [otro] = await db
+      .select({ coins: users.coins })
+      .from(users)
+      .where(eq(users.id, invitado.sesion.userId));
+
+    expect(ganador?.coins).toBe(50);
+    expect(otro?.coins).toBe(10);
+
+    // Y el libro contable distingue ganar de participar.
+    const apuntes = await db
+      .select({ userId: coinTransactions.userId, reason: coinTransactions.reason })
+      .from(coinTransactions);
+
+    expect(apuntes.find((a) => a.userId === anfitrion.userId)?.reason).toBe('GAME_WIN');
+    expect(apuntes.find((a) => a.userId === invitado.sesion.userId)?.reason).toBe('GAME_PLAYED');
+  });
+
+  it('jugar solo no paga ni participación', async () => {
+    const anfitrion = await ayudantes.crearUsuario();
+    const { code, socket } = await ayudantes.crearSala(anfitrion);
+
+    const comienzos = ayudantes.recolectar<{ yourCards: number[][][] }>(socket, 'game:started');
+    const finales = ayudantes.recolectar<GameFinished>(socket, 'game:finished');
+
+    await ayudantes.emitir(socket, 'game:start');
+    const { yourCards } = await comienzos.esperarQue(() => true);
+    cantarExactamente(code, cardNumbers(yourCards[0]!));
+    await ayudantes.emitir(socket, 'game:claim', { type: 'FULL', cardIndex: 0 });
+
+    const final = await finales.esperarQue(() => true);
+    expect(final.coinsByUser[anfitrion.userId]).toBe(0);
   });
 });

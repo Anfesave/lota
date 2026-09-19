@@ -3,11 +3,13 @@
  * balance de juego, no constantes técnicas.
  */
 
-/** Cartón lleno: base más un extra por cada rival. */
-export const COINS_FULL_CARD_BASE = 50;
-export const COINS_PER_EXTRA_PLAYER = 10;
+/** Cartón lleno. Fijo: no depende de cuánta gente haya en la sala. */
+export const COINS_FULL_CARD = 50;
 
-/** Línea (solo en modo LINEA_Y_CARTON). */
+/** Por terminar la partida, se gane o no. */
+export const COINS_PARTICIPATION = 10;
+
+/** Línea (solo en modo LINEA_Y_CARTON); se suma a lo anterior. */
 export const COINS_LINE = 15;
 
 /** Bono por el primer inicio de sesión de cada día. */
@@ -16,9 +18,22 @@ export const COINS_DAILY_BONUS = 10;
 /** Tope de monedas ganadas en partidas por usuario y día (anti-farmeo). */
 export const DAILY_COINS_CAP = 500;
 
-/** Monedas que reparte un cartón lleno con `jugadores` en la sala. */
-export function coinsForFullCard(jugadores: number): number {
-  return COINS_FULL_CARD_BASE + COINS_PER_EXTRA_PLAYER * Math.max(0, jugadores - 1);
+/**
+ * Monedas que le tocan a un jugador al terminar la partida.
+ *
+ * Ganar el cartón paga 50 **en vez** de los 10 de participación, no además:
+ * son premios excluyentes. La línea sí se suma, porque se gana antes y sin
+ * terminar la partida.
+ */
+export function coinsForPlayer({
+  ganoCarton,
+  ganoLinea,
+}: {
+  ganoCarton: boolean;
+  ganoLinea: boolean;
+}): number {
+  const base = ganoCarton ? COINS_FULL_CARD : COINS_PARTICIPATION;
+  return base + (ganoLinea ? COINS_LINE : 0);
 }
 
 /**
