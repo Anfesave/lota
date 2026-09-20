@@ -18,9 +18,9 @@ export interface Lotero {
 }
 
 export const LOTEROS: Record<LoteroId, Lotero> = {
-  negra: { id: 'negra', nombre: 'La Negra', imagen: '/loteros/negra.webp' },
-  rayada: { id: 'rayada', nombre: 'La Rayada', imagen: '/loteros/rayada.webp' },
-  colorina: { id: 'colorina', nombre: 'La Colorina', imagen: '/loteros/colorina.webp' },
+  negra: { id: 'negra', nombre: 'El Cleo', imagen: '/loteros/negra.webp' },
+  rayada: { id: 'rayada', nombre: 'La Nevada', imagen: '/loteros/rayada.webp' },
+  colorina: { id: 'colorina', nombre: 'La Chiliven', imagen: '/loteros/colorina.webp' },
 };
 
 /** La que representa a la aplicación fuera de la partida. */
